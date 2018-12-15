@@ -2,11 +2,12 @@
   "name": "nodejs-walletconnect-example",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js",
-    "start:prod": "NODE_ENV=production node index.js"
+    "start": "NODE_ENV=production node server",
+    "build": "cd client && NODE_ENV=production npm run build && cd ..",
+    "dev": "NODE_ENV=development concurrently \"cd client && npm start\" \"nodemon server\""
   },
   "repository": {
     "type": "git",
@@ -24,11 +25,13 @@
     "ws": "^6.1.2"
   },
   "devDependencies": {
+    "concurrently": "^4.1.0",
     "eslint": "^5.10.0",
     "eslint-config-standard": "^12.0.0",
     "eslint-plugin-import": "^2.14.0",
     "eslint-plugin-node": "^8.0.0",
     "eslint-plugin-promise": "^4.0.1",
-    "eslint-plugin-standard": "^4.0.0"
+    "eslint-plugin-standard": "^4.0.0",
+    "nodemon": "^1.18.9"
   }
 }
