@@ -1,11 +1,10 @@
 import React, { Component } from "react";
 import styled from "styled-components";
-import { isMobile } from "./helpers/utils";
 
-import { initWalletConnect } from "./helpers/walletconnect";
-import Card from "./Card";
+import { isMobile, initWalletConnect } from "./helpers";
+import Card from "./components/Card";
 import QRCodeDisplay from "./components/QRCodeDisplay";
-import QRCodeScanner from "./components/QRCodeScanner";
+// import QRCodeScanner from "./components/QRCodeScanner";
 import { colors } from "./styles";
 
 const SContainer = styled.div`
@@ -42,22 +41,17 @@ class App extends Component {
     }
   }
   render() {
-    const { mobile, walletConnector } = this.state;
-
+    const { loading, mobile, walletConnector } = this.state;
+    const uri = walletConnector ? walletConnector.uri : "";
+    console.log("[App.js] uri", uri);
     return (
       <SContainer>
         <div>{mobile ? "Wallet" : "Dapp"}</div>
         <div>
           {mobile ? (
-            <Card>
-              <QRCodeScanner onScan />
-            </Card>
+            <Card>{"Scan"}</Card>
           ) : (
-            !!walletConnector && (
-              <Card>
-                <QRCodeDisplay data={walletConnector.uri} />
-              </Card>
-            )
+            <Card>{!loading ? <QRCodeDisplay data={uri} /> : "loading"}</Card>
           )}
         </div>
       </SContainer>

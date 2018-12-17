@@ -3,12 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "aes-js": "^3.1.2",
     "eth-parse-uri": "^0.7.0",
-    "hmac": "^1.0.1",
+    "isomorphic-webcrypto": "^1.6.1",
     "prop-types": "^15.6.2",
     "qr-image": "^3.2.0",
-    "randombytes": "^2.0.6",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
     "react-qr-reader": "^2.1.1",

@@ -1,4 +1,4 @@
-import WalletConnect from "./walletconnect";
+import WalletConnect from "../lib/walletconnect";
 
 export function isMobile() {
   let isMobile = false;
@@ -42,7 +42,7 @@ export async function initWalletConnect() {
 
   const walletConnector = new WalletConnect({ node });
 
-  const session = await walletConnector.init();
+  await walletConnector.init();
 
-  return session;
+  return walletConnector;
 }
