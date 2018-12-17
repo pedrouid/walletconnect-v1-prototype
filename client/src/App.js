@@ -43,7 +43,6 @@ class App extends Component {
   render() {
     const { loading, mobile, walletConnector } = this.state;
     const uri = walletConnector ? walletConnector.uri : "";
-    console.log("[App.js] uri", uri);
     return (
       <SContainer>
         <div>{mobile ? "Wallet" : "Dapp"}</div>

@@ -150,15 +150,11 @@ class WalletConnect {
   _encrypt(data) {
     const key = this._key;
 
-    console.log("_encrypt key", key);
-
     return encrypt(data, key);
   }
 
   _decrypt(payload) {
     const key = this._key;
-
-    console.log("_decrypt key", key);
 
     return decrypt(payload, key);
   }
@@ -208,18 +204,13 @@ class WalletConnect {
     const socket = new WebSocket(url);
 
     socket.onopen = () => {
-      console.log("[walletconnect.js] WebSocket open at", url);
       const sessionRequest = this._encrypt(this.meta);
-      console.log("[walletconnect.js] sessionRequest", sessionRequest);
-
       const payload = JSON.stringify({
         id: payloadId(),
         jsonrpc: "2.0",
         method: "wc_sessionRequest",
         params: [this.id, "", sessionRequest]
       });
-      console.log("[walletconnect.js] payload", "payload");
-
       socket.send(payload);
     };
 
