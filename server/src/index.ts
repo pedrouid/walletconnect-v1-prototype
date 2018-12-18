@@ -7,7 +7,7 @@ import bridge from './bridge'
 
 const server = fastify({ logger: process.env.NODE_ENV !== 'production' })
 
-const staticRoot = path.join(__dirname, '../client/build')
+const staticRoot = path.join(__dirname, '../../client/build')
 console.log('staticRoot', staticRoot)
 
 server.register(fastifyStatic, {
