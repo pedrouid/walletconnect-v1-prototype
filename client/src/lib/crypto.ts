@@ -1,4 +1,3 @@
-import * as crypto from "isomorphic-webcrypto";
 import { IEncryptionPayload } from "./types";
 
 import {
@@ -15,7 +14,10 @@ const AES_ALGORITHM: string = "AES-CBC";
 const HMAC_ALGORITHM: string = "SHA-256";
 
 export async function exportKey(cryptoKey: CryptoKey): Promise<ArrayBuffer> {
-  const buffer: ArrayBuffer = await crypto.subtle.exportKey("raw", cryptoKey);
+  const buffer: ArrayBuffer = await window.crypto.subtle.exportKey(
+    "raw",
+    cryptoKey
+  );
   return buffer;
 }
 
@@ -32,7 +34,7 @@ export async function importKey(
         };
   const usages: string[] =
     type === AES_ALGORITHM ? ["encrypt", "decrypt"] : ["sign", "verify"];
-  const cryptoKey = await crypto.subtle.importKey(
+  const cryptoKey = await window.crypto.subtle.importKey(
     "raw",
     buffer,
     algo,
@@ -43,7 +45,7 @@ export async function importKey(
 }
 
 export async function generateKey(s: number = 256): Promise<ArrayBuffer> {
-  const cryptoKey = await crypto.subtle.generateKey(
+  const cryptoKey = await window.crypto.subtle.generateKey(
     {
       length: s,
       name: AES_ALGORITHM
@@ -60,7 +62,7 @@ export async function createHmac(
   key: ArrayBuffer
 ): Promise<ArrayBuffer> {
   const cryptoKey: CryptoKey = await importKey(key, "HMAC");
-  const signature = await crypto.subtle.sign(
+  const signature = await window.crypto.subtle.sign(
     {
       length: 256,
       name: "HMAC"
@@ -97,7 +99,7 @@ export async function aesCbcEncrypt(
   iv: ArrayBuffer
 ): Promise<ArrayBuffer> {
   const cryptoKey: CryptoKey = await importKey(key, AES_ALGORITHM);
-  const result: ArrayBuffer = await crypto.subtle.encrypt(
+  const result: ArrayBuffer = await window.crypto.subtle.encrypt(
     {
       iv,
       name: AES_ALGORITHM
@@ -114,7 +116,7 @@ export async function aesCbcDecrypt(
   iv: ArrayBuffer
 ): Promise<ArrayBuffer> {
   const cryptoKey: CryptoKey = await importKey(key, AES_ALGORITHM);
-  const result: ArrayBuffer = await window.crypto.subtle.decrypt(
+  const result: ArrayBuffer = await window.window.crypto.subtle.decrypt(
     {
       iv,
       name: AES_ALGORITHM
