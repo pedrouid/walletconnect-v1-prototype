@@ -8,7 +8,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "NODE_ENV=production node server/dist",
     "build": "concurrently \"cd client && npm run build\" \"cd server && npm run build\"",
-    "dev": "NODE_ENV=development concurrently \"cd client && npm start\" \"nodemon server\""
+    "dev": "NODE_ENV=development concurrently \"cd client && npm start\" \"cd  server && npm run dev\""
   },
   "repository": {
     "type": "git",
@@ -21,7 +21,6 @@
   },
   "homepage": "https://gitlab.com/pedrouid/nodejs-walletconnect-example#readme",
   "devDependencies": {
-    "concurrently": "^4.1.0",
-    "nodemon": "^1.18.9"
+    "concurrently": "^4.1.0"
   }
 }
