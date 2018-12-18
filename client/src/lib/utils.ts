@@ -1,0 +1,229 @@
+import { IClientMeta } from "./types";
+
+export function concatBuffers(...args: ArrayBuffer[]): ArrayBuffer {
+  const hex: string = args.map(b => convertBufferToHex(b)).join("");
+  const result: ArrayBuffer = convertHexToBuffer(hex);
+  return result;
+}
+
+export function convertBufferToUtf8(buffer: ArrayBuffer): string {
+  const array: Uint8Array = new Uint8Array(buffer);
+  const chars: string[] = [];
+  let i: number = 0;
+
+  while (i < array.length) {
+    const byte: number = array[i];
+    if (byte < 128) {
+      chars.push(String.fromCharCode(byte));
+      i++;
+    } else if (byte > 191 && byte < 224) {
+      chars.push(
+        String.fromCharCode(((byte & 0x1f) << 6) | (array[i + 1] & 0x3f))
+      );
+      i += 2;
+    } else {
+      chars.push(
+        String.fromCharCode(
+          ((byte & 0x0f) << 12) |
+            ((array[i + 1] & 0x3f) << 6) |
+            (array[i + 2] & 0x3f)
+        )
+      );
+      i += 3;
+    }
+  }
+
+  const utf8: string = chars.join("");
+  return utf8;
+}
+
+export function convertUtf8ToBuffer(utf8: string): ArrayBuffer {
+  const bytes: number[] = [];
+
+  let i = 0;
+  utf8 = encodeURI(utf8);
+  while (i < utf8.length) {
+    const byte: number = utf8.charCodeAt(i++);
+    if (byte === 37) {
+      bytes.push(parseInt(utf8.substr(i, 2), 16));
+      i += 2;
+    } else {
+      bytes.push(byte);
+    }
+  }
+
+  const array: Uint8Array = new Uint8Array(bytes);
+  const buffer: ArrayBuffer = array.buffer;
+  return buffer;
+}
+
+export function convertBufferToHex(buffer: ArrayBuffer): string {
+  const array: Uint8Array = new Uint8Array(buffer);
+  const HEX_CHARS: string = "0123456789abcdef";
+  const bytes: string[] = [];
+  for (let i = 0; i < array.length; i++) {
+    const byte = array[i];
+    bytes.push(HEX_CHARS[(byte & 0xf0) >> 4] + HEX_CHARS[byte & 0x0f]);
+  }
+  const hex: string = bytes.join("");
+  return hex;
+}
+
+export function convertHexToBuffer(hex: string): ArrayBuffer {
+  const bytes: number[] = [];
+
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes.push(parseInt(hex.substr(i, 2), 16));
+  }
+
+  const array: Uint8Array = new Uint8Array(bytes);
+  const buffer: ArrayBuffer = array.buffer;
+  return buffer;
+}
+
+export function payloadId(): number {
+  const datePart: number = new Date().getTime() * Math.pow(10, 3);
+  const extraPart: number = Math.floor(Math.random() * Math.pow(10, 3));
+  const id: number = datePart + extraPart;
+  return id;
+}
+
+/* tslint:disable */
+export function uuid(a?: number): string {
+  return a
+    ? (a ^ ((Math.random() * 16) >> (a / 4))).toString(16)
+    : ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, uuid);
+}
+/* tslint:enable */
+
+export function getMeta(): IClientMeta {
+  function getIcons(): string[] {
+    const links: HTMLCollectionOf<
+      HTMLLinkElement
+    > = document.getElementsByTagName("link");
+    const icons: string[] = [];
+
+    for (let i = 0; i < links.length; i++) {
+      const link: HTMLLinkElement = links[i];
+
+      const rel: string | null = link.getAttribute("rel");
+      if (rel) {
+        if (rel.toLowerCase().indexOf("icon") > -1) {
+          const href: string | null = link.getAttribute("href");
+
+          if (href) {
+            if (
+              href.toLowerCase().indexOf("https:") === -1 &&
+              href.toLowerCase().indexOf("http:") === -1 &&
+              href.indexOf("//") !== 0
+            ) {
+              let absoluteHref: string =
+                window.location.protocol + "//" + window.location.host;
+
+              if (href.indexOf("/") === 0) {
+                absoluteHref += href;
+              } else {
+                const path: string[] = window.location.pathname.split("/");
+                path.pop();
+                const finalPath: string = path.join("/");
+                absoluteHref += finalPath + "/" + href;
+              }
+
+              icons.push(absoluteHref);
+            } else if (href.indexOf("//") === 0) {
+              const absoluteUrl: string = window.location.protocol + href;
+
+              icons.push(absoluteUrl);
+            } else {
+              icons.push(href);
+            }
+          }
+        }
+      }
+    }
+
+    return icons;
+  }
+
+  function getMetaOfAny(...args: string[]): string {
+    const metaTags: HTMLCollectionOf<
+      HTMLMetaElement
+    > = document.getElementsByTagName("meta");
+
+    for (let i = 0; i < metaTags.length; i++) {
+      const tag: HTMLMetaElement = metaTags[i];
+      const attributes: Array<string | null> = ["itemprop", "property", "name"]
+        .map(target => tag.getAttribute(target))
+        .filter(attr => {
+          if (attr) {
+            args.includes(attr);
+          }
+        });
+
+      if (attributes.length && attributes) {
+        const content: string | null = tag.getAttribute("content");
+        if (content) {
+          return content;
+        }
+      }
+    }
+
+    return "";
+  }
+
+  function getName(): string {
+    let name: string = getMetaOfAny(
+      "name",
+      "og:site_name",
+      "og:title",
+      "twitter:title"
+    );
+
+    if (!name) {
+      name = document.title;
+    }
+
+    return name;
+  }
+
+  function getDescription(): string {
+    const description: string = getMetaOfAny(
+      "description",
+      "og:description",
+      "twitter:description",
+      "keywords"
+    );
+
+    return description;
+  }
+
+  const name: string = getName();
+  const description: string = getDescription();
+  const ssl: boolean = window.location.href.startsWith("https");
+  const host: string = window.location.hostname;
+  const icons: string[] = getIcons();
+
+  const meta: IClientMeta = {
+    description,
+    host,
+    icons,
+    name,
+    ssl
+  };
+
+  return meta;
+}
+
+export function stringifyJSON(data: any): string {
+  return JSON.stringify(data);
+}
+
+export function parseJSON(str: string): any {
+  let result = null;
+  try {
+    result = JSON.parse(str);
+  } catch (error) {
+    throw new Error(`Failed to parse invalid JSON`);
+  }
+  return result;
+}

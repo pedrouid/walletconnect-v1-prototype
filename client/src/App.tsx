@@ -1,9 +1,11 @@
-import React, { Component } from "react";
+import * as React from "react";
 import styled from "styled-components";
 
-import { isMobile, initWalletConnect } from "./helpers";
+import WalletConnect from "./lib/walletconnect";
+
 import Card from "./components/Card";
 import QRCodeDisplay from "./components/QRCodeDisplay";
+import { isMobile, initWalletConnect } from "./helpers";
 // import QRCodeScanner from "./components/QRCodeScanner";
 import { colors } from "./styles";
 
@@ -21,26 +23,37 @@ const SContainer = styled.div`
   color: rgb(${colors.lightBlue});
 `;
 
-class App extends Component {
-  state = {
-    loading: false,
-    mobile: isMobile(),
-    walletConnector: null
-  };
-  componentDidMount() {
-    if (!this.state.mobile) {
-      this.setState({ loading: true });
-      initWalletConnect()
-        .then(walletConnector => {
-          this.setState({ loading: false, walletConnector });
-        })
-        .catch(err => {
-          console.error(err);
-          this.setState({ loading: false });
-        });
-    }
+interface IAppState {
+  loading: boolean;
+  mobile: boolean;
+  walletConnector: WalletConnect | null;
+}
+
+class App extends React.Component<{}> {
+  public state: IAppState;
+
+  constructor(props: any) {
+    super(props);
+    this.state = {
+      loading: false,
+      mobile: isMobile(),
+      walletConnector: null
+    };
   }
-  render() {
+  public componentDidMount(): void {
+    // if (!this.state.mobile) {
+    //   this.setState({ loading: true });
+    //   initWalletConnect()
+    //     .then(walletConnector => {
+    //       this.setState({ loading: false, walletConnector });
+    //     })
+    //     .catch(err => {
+    //       this.setState({ loading: false });
+    //       throw err;
+    //     });
+    // }
+  }
+  public render() {
     const { loading, mobile, walletConnector } = this.state;
     const uri = walletConnector ? walletConnector.uri : "";
     return (
