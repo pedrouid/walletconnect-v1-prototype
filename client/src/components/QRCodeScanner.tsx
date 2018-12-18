@@ -1,7 +1,6 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
+import * as React from "react";
 import styled from "styled-components";
-import QrReader from "react-qr-reader";
+import * as QrReader from "react-qr-reader";
 
 const SQRCodeScannerContainer = styled.div`
   position: fixed;
@@ -53,53 +52,50 @@ const SSecondLine = styled(SFirstLine)`
   transform: rotate(90deg);
 `;
 
-const CloseButton = () => (
-  <SCloseButton>
-    <SFirstLine />
-    <SSecondLine />
-  </SCloseButton>
-);
+interface IQRCodeScannerState {
+  delay: number;
+}
 
-class QRCodeScanner extends Component {
-  constructor() {
-    super();
+class QRCodeScanner extends React.Component<any> {
+  public state: IQRCodeScannerState;
+  constructor(props: any) {
+    super(props);
     this.state = {
       delay: 500
     };
-    this.stopRecording.bind(this);
-    this.handleScan.bind(this);
-    this.handleError.bind(this);
-    this.onClose.bind(this);
   }
-  stopRecording() {
+  public stopRecording = () => {
     this.setState({ delay: false });
-  }
-  handleScan(data) {
+  };
+  public handleScan = (data: string) => {
+    const { onValidate, onScan, onError } = this.props;
     if (data) {
-      const validate = this.props.onValidate(data);
-      if (validate.result) {
+      const { result, error } = onValidate(data);
+      if (result) {
         this.stopRecording();
-        this.props.onScan(validate.data);
+        onScan(result);
       } else {
-        validate.onError();
+        onError(error);
       }
     }
-  }
-  handleError(error) {
-    console.error(error);
+  };
+  public handleError = (error: Error) => {
     this.props.onError(error);
-  }
-  onClose() {
+  };
+  public onClose = () => {
     this.stopRecording();
     this.props.onClose();
-  }
-  componentWillUnmount() {
+  };
+  public componentWillUnmount() {
     this.stopRecording();
   }
-  render() {
+  public render() {
     return (
       <SQRCodeScannerContainer>
-        <CloseButton onClick={this.onClose} />
+        <SCloseButton onClick={this.onClose}>
+          <SFirstLine />
+          <SSecondLine />
+        </SCloseButton>
         <SQRCodeScannerWrapper>
           <QrReader
             delay={this.state.delay}
@@ -112,12 +108,5 @@ class QRCodeScanner extends Component {
     );
   }
 }
-
-QRCodeScanner.propTypes = {
-  onScan: PropTypes.func.isRequired,
-  onError: PropTypes.func.isRequired,
-  onClose: PropTypes.func.isRequired,
-  onValidate: PropTypes.func.isRequired
-};
 
 export default QRCodeScanner;

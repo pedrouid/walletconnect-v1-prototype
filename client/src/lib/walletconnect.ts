@@ -1,10 +1,10 @@
-import ethParseUri from "./ethParseUri";
 import { decrypt, encrypt, generateKey } from "./crypto";
 import {
   IEncryptionPayload,
   ISocketPayload,
   IJSONRPCRequest,
   IClientMeta,
+  IParseURIResult,
   IWalletConnectSession,
   IWalletConnectOptions,
   IWalletConnectJSON
@@ -16,7 +16,8 @@ import {
   parseJSON,
   payloadId,
   stringifyJSON,
-  uuid
+  uuid,
+  parseWalletConnectUri
 } from "./utils";
 
 const localStorageId: string = "wcsmngt";
@@ -38,6 +39,7 @@ class WalletConnect {
   private _peerId: string | null;
   private _meta: IClientMeta | null;
   private _peerMeta: IClientMeta | null;
+  private _topic: string | null;
   private _accounts: string[] | null;
   private _chainId: number | null;
   private _socket: WebSocket | null;
@@ -130,6 +132,17 @@ class WalletConnect {
     return peerMeta;
   }
 
+  set topic(value) {
+    if (!value) {
+      return;
+    }
+    this._topic = value;
+  }
+
+  get topic() {
+    return this._topic;
+  }
+
   get uri() {
     const _uri = this._formatUri();
     return _uri;
@@ -139,9 +152,9 @@ class WalletConnect {
     if (!value) {
       return;
     }
-    const { peerId, node, key } = this._parseUri(value);
-    this._peerId = peerId;
-    this._node = node;
+    const { topic, node, key } = this._parseUri(value);
+    this.topic = topic;
+    this.node = node;
     this.key = key;
   }
 
@@ -206,6 +219,7 @@ class WalletConnect {
       };
       const payload = await this._encrypt(request);
       const topic = uuid();
+      this.topic = topic;
       socketPayload = {
         topic,
         payload
@@ -242,33 +256,33 @@ class WalletConnect {
 
   private _formatUri() {
     const protocol = this.protocol;
-    const id = this.id;
+    const topic = this.topic;
     const version = this.version;
     const node = encodeURIComponent(this.node);
     const key = this.key;
-    const uri = `${protocol}:${id}@${version}?node=${node}&key=${key}`;
+    const uri = `${protocol}:${topic}@${version}?node=${node}&key=${key}`;
     return uri;
   }
 
   private _parseUri(uri: string) {
-    const result = ethParseUri(uri);
+    const result: IParseURIResult = parseWalletConnectUri(uri);
     if (result.protocol === "protocol") {
-      if (!result.sessionId || typeof result.sessionId === "string") {
-        throw Error("Invalid or missing peerId parameter value");
+      if (!result.topic || typeof result.topic === "string") {
+        throw Error("Invalid or missing topic parameter value");
       }
-      const peerId = result.sessionId;
+      const topic = result.topic;
 
-      if (!result.bridge || typeof result.bridge === "string") {
+      if (!result.node || typeof result.node === "string") {
         throw Error("Invalid or missing node url parameter value");
       }
-      const node = decodeURIComponent(result.bridge);
+      const node = decodeURIComponent(result.node);
 
-      if (!result.symKey || typeof result.symKey === "string") {
-        throw Error("Invalid or missing key parameter value");
+      if (!result.key || typeof result.key === "string") {
+        throw Error("Invalid or missing kkey parameter value");
       }
-      const key = result.symKey;
+      const key = result.key;
 
-      return { peerId, node, key };
+      return { topic, node, key };
     } else {
       throw new Error("URI format doesn't follow WalletConnect protocol");
     }

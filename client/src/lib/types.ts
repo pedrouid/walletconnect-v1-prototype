@@ -24,6 +24,24 @@ export interface IClientMeta {
   ssl: boolean;
 }
 
+export interface IRequiredParamsResult {
+  topic: string;
+  version: number;
+}
+
+export interface IQueryParamsResult {
+  node: string;
+  key: string;
+}
+
+export interface IParseURIResult {
+  protocol: string;
+  topic: string;
+  version: number;
+  node: string;
+  key: string;
+}
+
 export interface IWalletConnectOptions {
   node?: string;
   uri?: string;

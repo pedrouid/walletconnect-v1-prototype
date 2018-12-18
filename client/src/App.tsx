@@ -41,17 +41,17 @@ class App extends React.Component<{}> {
     };
   }
   public componentDidMount(): void {
-    // if (!this.state.mobile) {
-    //   this.setState({ loading: true });
-    //   initWalletConnect()
-    //     .then(walletConnector => {
-    //       this.setState({ loading: false, walletConnector });
-    //     })
-    //     .catch(err => {
-    //       this.setState({ loading: false });
-    //       throw err;
-    //     });
-    // }
+    if (!this.state.mobile) {
+      this.setState({ loading: true });
+      initWalletConnect()
+        .then(walletConnector => {
+          this.setState({ loading: false, walletConnector });
+        })
+        .catch(err => {
+          this.setState({ loading: false });
+          throw err;
+        });
+    }
   }
   public render() {
     const { loading, mobile, walletConnector } = this.state;

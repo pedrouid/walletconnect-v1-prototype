@@ -1,4 +1,9 @@
-import { IClientMeta } from "./types";
+import {
+  IClientMeta,
+  IRequiredParamsResult,
+  IQueryParamsResult,
+  IParseURIResult
+} from "./types";
 
 export function concatBuffers(...args: ArrayBuffer[]): ArrayBuffer {
   const hex: string = args.map(b => convertBufferToHex(b)).join("");
@@ -225,5 +230,66 @@ export function parseJSON(str: string): any {
   } catch (error) {
     throw new Error(`Failed to parse invalid JSON`);
   }
+  return result;
+}
+
+export function parseWalletConnectUri(str: string): IParseURIResult {
+  const pathStart: number = str.indexOf(":");
+
+  const pathEnd: number | undefined =
+    str.indexOf("?") !== -1 ? str.indexOf("?") : undefined;
+
+  const protocol: string = str.substr(0, pathStart);
+
+  const path: string = str.substr(pathStart + 1, pathEnd);
+
+  function parseRequiredParams(path: string): IRequiredParamsResult {
+    const separator = "@";
+    const values = path.split(separator);
+
+    const requiredParams = {
+      topic: values[0],
+      version: parseInt(values[1], 10)
+    };
+
+    return requiredParams;
+  }
+
+  const requiredParams: IRequiredParamsResult = parseRequiredParams(path);
+
+  const queryString: string =
+    typeof pathEnd !== "undefined" ? str.substr(pathEnd) : "";
+
+  function parseQueryParams(queryString: string): IQueryParamsResult {
+    const parameters = {
+      node: "",
+      key: ""
+    };
+
+    const pairs = (queryString[0] === "?"
+      ? queryString.substr(1)
+      : queryString
+    ).split("&");
+
+    for (let i = 0; i < pairs.length; i++) {
+      const keyArr: string[] = pairs[i].match(/\w+(?==)/i) || [];
+      const valueArr: string[] = pairs[i].match(/=.+/i) || [];
+      if (keyArr[0]) {
+        parameters[decodeURIComponent(keyArr[0])] = decodeURIComponent(
+          valueArr[0].substr(1)
+        );
+      }
+    }
+    return parameters;
+  }
+
+  const queryParams: IQueryParamsResult = parseQueryParams(queryString);
+
+  const result: IParseURIResult = {
+    protocol,
+    ...requiredParams,
+    ...queryParams
+  };
+
   return result;
 }

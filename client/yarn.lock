@@ -93,15 +93,29 @@
   resolved "https://registry.yarnpkg.com/@types/node/-/node-10.12.15.tgz#20e85651b62fd86656e57c9c9bc771ab1570bc59"
   integrity sha512-9kROxduaN98QghwwHmxXO2Xz3MaWf+I1sLVAA6KJDF5xix+IyXVhds0MAfdNwtcpSrzhaTsNB0/jnL86fgUhqA==
 
-"@types/prop-types@*":
+"@types/prop-types@*", "@types/prop-types@^15.5.8":
   version "15.5.8"
   resolved "https://registry.yarnpkg.com/@types/prop-types/-/prop-types-15.5.8.tgz#8ae4e0ea205fe95c3901a5a1df7f66495e3a56ce"
   integrity sha512-3AQoUxQcQtLHsK25wtTWIoIpgYjH3vSDroZOUr7PpCHw/jLY1RB9z9E8dBT/OSmwStVgkRNvdh+ZHNiomRieaw==
+
+"@types/qr-image@^3.2.1":
+  version "3.2.1"
+  resolved "https://registry.yarnpkg.com/@types/qr-image/-/qr-image-3.2.1.tgz#002f5b654c2c615e1715100a26bc81748bba85fe"
+  integrity sha512-x8Jv9YUw0wPXviOwX1/QPcLWFv2M9dYAQwYKWs4pqzCcBMWrgjGlrPSpvc9T2YtKitJa/+BkGQnAUgphqdeoeA==
+  dependencies:
+    "@types/node" "*"
 
 "@types/react-dom@^16.0.11":
   version "16.0.11"
   resolved "https://registry.yarnpkg.com/@types/react-dom/-/react-dom-16.0.11.tgz#bd10ccb0d9260343f4b9a49d4f7a8330a5c1f081"
   integrity sha512-x6zUx9/42B5Kl2Vl9HlopV8JF64wLpX3c+Pst9kc1HgzrsH+mkehe/zmHMQTplIrR48H2gpU7ZqurQolYu8XBA==
+  dependencies:
+    "@types/react" "*"
+
+"@types/react-qr-reader@^2.1.2":
+  version "2.1.2"
+  resolved "https://registry.yarnpkg.com/@types/react-qr-reader/-/react-qr-reader-2.1.2.tgz#da7a674cf9e3ceb1c026e89d5aa41fb1587fc66b"
+  integrity sha512-tDLqqiQMZlTKBKtWedcf7QZ3L9fyz8nPHNq/j+1mcJoEvrdM3Y89i3/FKwdmZ4H7G6uUk4JqShpWXLCuYpZK+w==
   dependencies:
     "@types/react" "*"
 

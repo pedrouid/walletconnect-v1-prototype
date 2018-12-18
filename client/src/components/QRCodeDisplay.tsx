@@ -1,7 +1,6 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
+import * as React from "react";
 import styled from "styled-components";
-import qrImage from "qr-image";
+import * as qrImage from "qr-image";
 
 const SQRCodeDisplay = styled.div`
   width: 100%;
@@ -14,41 +13,51 @@ const SQRCodeDisplay = styled.div`
   }
 `;
 
-class QRCodeDisplay extends Component {
-  state = {
-    img: ""
-  };
+interface IQRCodeDisplayState {
+  img: string;
+}
 
-  componentDidMount() {
+interface IQRCodeDisplayProps {
+  data: string;
+}
+
+class QRCodeDisplay extends React.Component<IQRCodeDisplayProps> {
+  public state: IQRCodeDisplayState;
+
+  constructor(props: IQRCodeDisplayProps) {
+    super(props);
+    this.state = {
+      img: ""
+    };
+  }
+
+  public componentDidMount() {
     this.updateQRCodeImage();
   }
 
-  componentDidUpdate(prevProps, prevState) {
+  public componentDidUpdate(prevProps: IQRCodeDisplayProps) {
     if (prevProps.data !== this.props.data) {
       this.setState({ data: this.props.data });
       this.updateQRCodeImage();
     }
   }
 
-  updateQRCodeImage() {
+  public updateQRCodeImage() {
     this.setState({ img: "" });
     if (this.props.data) {
       const img = qrImage.imageSync(this.props.data, { type: "svg" });
       this.setState({ img });
     }
   }
-  render() {
-    return this.state.img ? (
+  public render() {
+    const { img } = this.state;
+    return img ? (
       <SQRCodeDisplay
-        dangerouslySetInnerHTML={{ __html: this.state.img }}
+        dangerouslySetInnerHTML={{ __html: img }}
         {...this.props}
       />
     ) : null;
   }
 }
-
-QRCodeDisplay.propTypes = {
-  data: PropTypes.string.isRequired
-};
 
 export default QRCodeDisplay;
