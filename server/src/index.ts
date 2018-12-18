@@ -1,7 +1,9 @@
-const path = require('path')
-const fastify = require('fastify')
-const fastifyStatic = require('fastify-static')
-const WebSocketServer = require('ws').Server
+import path from 'path'
+import fastify from 'fastify'
+import fastifyStatic from 'fastify-static'
+import WebSocket from 'ws'
+
+import bridge from './bridge'
 
 const server = fastify({ logger: process.env.NODE_ENV !== 'production' })
 
@@ -15,18 +17,18 @@ server.get('/', (req, res) => {
   res.sendFile('index.html')
 })
 
-const wsServer = new WebSocketServer({ server: server.server })
-const relayer = require('./relayer')
+const wsServer = new WebSocket.Server({ server: server.server })
 
 server.ready(() => {
   wsServer.on('connection', function (socket) {
-    socket.on('message', async function (message) {
-      let payload = null
+    socket.on('message', async function (data) {
+      const message = String(data)
+      let socketPayload = null
       console.log('message =>', message)
       if (message) {
         try {
-          payload = JSON.parse(message)
-          relayer(socket, payload)
+          socketPayload = JSON.parse(message)
+          bridge(socket, socketPayload)
         } catch (e) {
           console.error(e)
         }
@@ -35,7 +37,7 @@ server.ready(() => {
   })
 })
 
-const port = process.env.PORT || 5000
+const port = Number(process.env.PORT) || 5000
 
 server.listen(port, () => {
   console.log(`Server listening on ${port}`)
