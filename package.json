@@ -4,9 +4,10 @@
   "description": "",
   "main": "server/index.js",
   "scripts": {
+    "bootstrap": "npm install && concurrently \"cd client && npm install\" \"cd server && npm install\"",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "NODE_ENV=production node server",
-    "build": "cd client && NODE_ENV=production npm run build && cd ..",
+    "start": "NODE_ENV=production node server/dist",
+    "build": "concurrently \"cd client && npm run build\" \"cd server && npm run build\"",
     "dev": "NODE_ENV=development concurrently \"cd client && npm start\" \"nodemon server\""
   },
   "repository": {
@@ -19,19 +20,8 @@
     "url": "https://gitlab.com/pedrouid/nodejs-walletconnect-example/issues"
   },
   "homepage": "https://gitlab.com/pedrouid/nodejs-walletconnect-example#readme",
-  "dependencies": {
-    "fastify": "^1.13.2",
-    "fastify-static": "^1.0.0",
-    "ws": "^6.1.2"
-  },
   "devDependencies": {
     "concurrently": "^4.1.0",
-    "eslint": "^5.10.0",
-    "eslint-config-standard": "^12.0.0",
-    "eslint-plugin-import": "^2.14.0",
-    "eslint-plugin-node": "^8.0.0",
-    "eslint-plugin-promise": "^4.0.1",
-    "eslint-plugin-standard": "^4.0.0",
     "nodemon": "^1.18.9"
   }
 }

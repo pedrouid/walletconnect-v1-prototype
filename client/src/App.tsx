@@ -1,9 +1,11 @@
-import React, { Component } from "react";
+import * as React from "react";
 import styled from "styled-components";
 
-import { isMobile, initWalletConnect } from "./helpers";
+import WalletConnect from "./lib/walletconnect";
+
 import Card from "./components/Card";
 import QRCodeDisplay from "./components/QRCodeDisplay";
+import { isMobile, initWalletConnect } from "./helpers";
 // import QRCodeScanner from "./components/QRCodeScanner";
 import { colors } from "./styles";
 
@@ -21,13 +23,24 @@ const SContainer = styled.div`
   color: rgb(${colors.lightBlue});
 `;
 
-class App extends Component {
-  state = {
-    loading: false,
-    mobile: isMobile(),
-    walletConnector: null
-  };
-  componentDidMount() {
+interface IAppState {
+  loading: boolean;
+  mobile: boolean;
+  walletConnector: WalletConnect | null;
+}
+
+class App extends React.Component<{}> {
+  public state: IAppState;
+
+  constructor(props: any) {
+    super(props);
+    this.state = {
+      loading: false,
+      mobile: isMobile(),
+      walletConnector: null
+    };
+  }
+  public componentDidMount(): void {
     if (!this.state.mobile) {
       this.setState({ loading: true });
       initWalletConnect()
@@ -35,12 +48,12 @@ class App extends Component {
           this.setState({ loading: false, walletConnector });
         })
         .catch(err => {
-          console.error(err);
           this.setState({ loading: false });
+          throw err;
         });
     }
   }
-  render() {
+  public render() {
     const { loading, mobile, walletConnector } = this.state;
     const uri = walletConnector ? walletConnector.uri : "";
     return (

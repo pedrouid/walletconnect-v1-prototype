@@ -1,7 +1,11 @@
-import React from "react";
+import * as React from "react";
 import styled from "styled-components";
 
 import { colors } from "../styles";
+
+interface ICardProps {
+  children: React.ReactNode;
+}
 
 const SCard = styled.div`
   width: 100%;
@@ -16,8 +20,8 @@ const SCard = styled.div`
   margin: 20px;
 `;
 
-const Card = ({ children, ...props }) => {
-  return <SCard {...props}>{children}</SCard>;
+const Card = (props: ICardProps) => {
+  return <SCard {...props}>{props.children}</SCard>;
 };
 
 export default Card;
