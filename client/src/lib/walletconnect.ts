@@ -99,6 +99,11 @@ class WalletConnect {
   }
 
   get clientId() {
+    let clientId: string | null = this._clientId;
+    if (!clientId) {
+      clientId = this._clientId = uuid();
+    }
+
     return this._clientId;
   }
 
@@ -208,24 +213,19 @@ class WalletConnect {
       this.accounts = session.accounts;
       this.key = session.key;
     } else {
-      const clientId = uuid();
-      this.clientId = clientId;
-      const clientMeta = this.clientMeta;
       this._key = await generateKey();
       session = this._setLocal();
-      const request: IJSONRPCRequest = {
+      const sessionRequest: IJSONRPCRequest = {
         id: payloadId(),
         jsonrpc: "2.0",
         method: "wc_sessionRequest",
-        params: [clientId, clientMeta]
+        params: [this.clientId, this.clientMeta]
       };
-      const topic = uuid();
-      const event = "pub";
-      const payload = await this._encrypt(request);
-      this.topic = topic;
+      const payload = await this._encrypt(sessionRequest);
+      this.topic = uuid();
       socketMessage = {
-        topic,
-        event,
+        topic: this.topic,
+        event: "pub",
         payload
       };
     }
