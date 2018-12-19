@@ -1,52 +1,98 @@
 import WebSocket from 'ws'
 
-interface ISocketPayload {
+interface ISocketMessage {
   topic: string
+  event: string
   payload: string
 }
 
-interface ISocketDict {
-  [id: string]: WebSocket
+interface ISocketSub {
+  topics: string[]
+  socket: WebSocket
 }
 
-const sockets: ISocketDict = {}
-const pendingPayloads: ISocketPayload[] = []
+interface ISocketSubDict {
+  [clientId: string]: ISocketSub
+}
 
-function sendPayload (socket: WebSocket, socketPayload: ISocketPayload) {
+const subs: ISocketSubDict = {}
+const pubs: ISocketMessage[] = []
+
+function socketSend (socket: WebSocket, socketMessage: ISocketMessage) {
   if (socket.readyState === 1) {
-    socket.send(JSON.stringify(socketPayload))
+    socket.send(JSON.stringify(socketMessage))
   }
 }
 
-function findSocket (id: string): WebSocket | null {
-  if (Object.keys(sockets).includes(id)) {
-    return sockets[id]
-  } else {
-    return null
-  }
-}
+const SubController = (socket: WebSocket, socketMessage: ISocketMessage) => {
+  const clientId = socketMessage.topic
+  let topics = [clientId]
+  const payload = socketMessage.payload ? JSON.parse(socketMessage.payload) : []
 
-const bridge = (socket: WebSocket, socketPayload: ISocketPayload) => {
-  if (socketPayload.payload.toLowerCase().startsWith('subscribe')) {
-    if (!findSocket(socketPayload.topic)) {
-      sockets[socketPayload.topic] = socket
-    }
-    pendingPayloads
-      .filter(
-        (pendingPayloads: ISocketPayload) =>
-          pendingPayloads.topic === socketPayload.topic
-      )
-      .forEach((pendingPayloads: ISocketPayload) => {
-        sendPayload(socket, pendingPayloads)
-      })
+  if (payload && payload.length) {
+    topics = [...topics, ...payload]
+  }
+
+  let subscriber: ISocketSub = subs[clientId]
+
+  if (subscriber) {
+    subscriber.topics = topics
   } else {
-    const receiver = findSocket(socketPayload.topic)
-    if (receiver) {
-      sendPayload(receiver, socketPayload)
-    } else {
-      pendingPayloads.push(socketPayload)
+    subscriber = {
+      topics,
+      socket
     }
   }
+
+  subs[clientId] = subscriber
+
+  const pending = pubs.filter((pendingMessage: ISocketMessage) =>
+    topics.includes(pendingMessage.topic)
+  )
+
+  if (pending && pending.length) {
+    pending.forEach((pendingMessage: ISocketMessage) =>
+      socketSend(subscriber.socket, pendingMessage)
+    )
+  }
 }
 
-export default bridge
+const PubController = (socketMessage: ISocketMessage) => {
+  const subscribers: ISocketSub[] = []
+
+  Object.keys(subs).forEach((clientId: string) => {
+    const subscriber = subs[clientId]
+
+    if (subscriber.topics.includes(socketMessage.topic)) {
+      subscribers.push(subscriber)
+    }
+  })
+
+  if (subscribers.length) {
+    subscribers.forEach((subscriber: ISocketSub) =>
+      socketSend(subscriber.socket, socketMessage)
+    )
+  } else {
+    pubs.push(socketMessage)
+  }
+}
+
+const Bridge = (socket: WebSocket, socketMessage: ISocketMessage) => {
+  switch (socketMessage.event) {
+    case 'sub':
+      SubController(socket, socketMessage)
+      break
+    case 'pub':
+      PubController(socketMessage)
+      break
+    default:
+      const errorMessage = {
+        topic: socketMessage.topic,
+        event: 'err',
+        payload: 'Invalid Message Event Type'
+      }
+      socketSend(socket, errorMessage)
+  }
+}
+
+export default Bridge

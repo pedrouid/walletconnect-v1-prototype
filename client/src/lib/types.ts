@@ -4,8 +4,9 @@ export interface IEncryptionPayload {
   iv: string;
 }
 
-export interface ISocketPayload {
+export interface ISocketMessage {
   topic: string;
+  event: string;
   payload: string;
 }
 
@@ -52,8 +53,8 @@ export interface IWalletConnectSession {
   chainId: number | null;
   node: string;
   key: string;
-  id: string;
-  meta: IClientMeta | null;
+  clientId: string;
+  clientMeta: IClientMeta | null;
   peerId: string | null;
   peerMeta: IClientMeta | null;
 }

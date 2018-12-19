@@ -1,7 +1,7 @@
 import { decrypt, encrypt, generateKey } from "./crypto";
 import {
   IEncryptionPayload,
-  ISocketPayload,
+  ISocketMessage,
   IJSONRPCRequest,
   IClientMeta,
   IParseURIResult,
@@ -35,9 +35,9 @@ class WalletConnect {
   private version: number;
   private _node: string;
   private _key: ArrayBuffer;
-  private _id: string;
+  private _clientId: string;
+  private _clientMeta: IClientMeta | null;
   private _peerId: string | null;
-  private _meta: IClientMeta | null;
   private _peerMeta: IClientMeta | null;
   private _topic: string | null;
   private _accounts: string[] | null;
@@ -48,8 +48,10 @@ class WalletConnect {
     this.protocol = "wc";
     this.version = 1;
 
-    this._meta = null;
+    this._clientMeta = null;
+    this._peerId = null;
     this._peerMeta = null;
+    this._topic = null;
     this._accounts = null;
     this._chainId = null;
     this._socket = null;
@@ -89,15 +91,15 @@ class WalletConnect {
     return key;
   }
 
-  set id(value: string) {
+  set clientId(value: string) {
     if (!value) {
       return;
     }
-    this._id = value;
+    this._clientId = value;
   }
 
-  get id() {
-    return this._id;
+  get clientId() {
+    return this._clientId;
   }
 
   set peerId(value) {
@@ -111,16 +113,16 @@ class WalletConnect {
     return this._peerId;
   }
 
-  set meta(value) {
+  set clientMeta(value) {
     return;
   }
 
-  get meta() {
-    let meta: IClientMeta | null = this._meta;
-    if (!meta || !Object.keys(meta).length) {
-      meta = this._meta = getMeta();
+  get clientMeta() {
+    let clientMeta: IClientMeta | null = this._clientMeta;
+    if (!clientMeta || !Object.keys(clientMeta).length) {
+      clientMeta = this._clientMeta = getMeta();
     }
-    return meta;
+    return clientMeta;
   }
 
   set peerMeta(value) {
@@ -182,8 +184,8 @@ class WalletConnect {
       chainId: this.chainId || null,
       node: this.node,
       key: this.key,
-      id: this.id,
-      meta: this.meta,
+      clientId: this.clientId,
+      clientMeta: this.clientMeta,
       peerId: this.peerId || null,
       peerMeta: this.peerMeta || null
     };
@@ -195,37 +197,39 @@ class WalletConnect {
   }
 
   public async init() {
-    let socketPayload: ISocketPayload | null = null;
+    let socketMessage: ISocketMessage | null = null;
     let session: IWalletConnectSession | null = this._getLocal();
     if (session) {
       this.node = session.node;
-      this.id = session.id;
+      this.clientId = session.clientId;
       this.peerId = session.peerId;
       this.peerMeta = session.peerMeta;
       this.chainId = session.chainId;
       this.accounts = session.accounts;
       this.key = session.key;
     } else {
-      const id = uuid();
-      this.id = id;
-      const meta = this.meta;
+      const clientId = uuid();
+      this.clientId = clientId;
+      const clientMeta = this.clientMeta;
       this._key = await generateKey();
       session = this._setLocal();
       const request: IJSONRPCRequest = {
         id: payloadId(),
         jsonrpc: "2.0",
         method: "wc_sessionRequest",
-        params: [id, meta]
+        params: [clientId, clientMeta]
       };
-      const payload = await this._encrypt(request);
       const topic = uuid();
+      const event = "pub";
+      const payload = await this._encrypt(request);
       this.topic = topic;
-      socketPayload = {
+      socketMessage = {
         topic,
+        event,
         payload
       };
     }
-    this._socketOpen(socketPayload);
+    this._socketOpen(socketMessage);
     return session;
   }
 
@@ -288,7 +292,7 @@ class WalletConnect {
     }
   }
 
-  private _socketOpen(socketPayload: ISocketPayload | null = null) {
+  private _socketOpen(socketMessage: ISocketMessage | null = null) {
     const node = this.node;
 
     const url = node.startsWith("https")
@@ -300,8 +304,16 @@ class WalletConnect {
     const socket = new WebSocket(url);
 
     socket.onopen = () => {
-      if (socketPayload) {
-        this._socketSend(socketPayload);
+      const subscription = {
+        topic: this.clientId,
+        event: "sub",
+        payload: ""
+      };
+
+      this._socketSend(subscription);
+
+      if (socketMessage) {
+        this._socketSend(socketMessage);
       }
     };
 
@@ -310,22 +322,22 @@ class WalletConnect {
     this._socket = socket;
   }
 
-  private _socketSend(socketPayload: ISocketPayload) {
+  private _socketSend(socketMessage: ISocketMessage) {
     const socket: WebSocket | null = this._socket;
 
     if (!socket) {
       throw new Error("Missing socket: required for sending message");
     }
-    const message: string = stringifyJSON(socketPayload);
+    const message: string = stringifyJSON(socketMessage);
 
     socket.send(message);
   }
 
   private async _socketReceive(event: MessageEvent) {
-    const socketPayload: IEncryptionPayload = parseJSON(event.data.payload);
-    const request: IJSONRPCRequest | null = await this._decrypt(socketPayload);
+    const socketMessage: IEncryptionPayload = parseJSON(event.data.payload);
+    const request: IJSONRPCRequest | null = await this._decrypt(socketMessage);
     if (request) {
-      console.log("message", request); // tslint:disable-line
+      // do something
     }
   }
 
@@ -346,12 +358,6 @@ class WalletConnect {
     }
     return session;
   }
-
-  // private _removeLocal(): void {
-  //   if (localStorage) {
-  //     localStorage.removeItem(localStorageId);
-  //   }
-  // }
 }
 
 export default WalletConnect;

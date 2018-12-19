@@ -23,12 +23,12 @@ server.ready(() => {
   wsServer.on('connection', function (socket) {
     socket.on('message', async function (data) {
       const message = String(data)
-      let socketPayload = null
+      let socketMessage = null
       console.log('message =>', message)
       if (message) {
         try {
-          socketPayload = JSON.parse(message)
-          bridge(socket, socketPayload)
+          socketMessage = JSON.parse(message)
+          bridge(socket, socketMessage)
         } catch (e) {
           console.error(e)
         }
