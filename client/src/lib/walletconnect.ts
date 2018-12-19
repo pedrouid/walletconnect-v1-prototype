@@ -13,9 +13,7 @@ import {
   convertBufferToHex,
   convertHexToBuffer,
   getMeta,
-  parseJSON,
   payloadId,
-  stringifyJSON,
   uuid,
   parseWalletConnectUri
 } from "./utils";
@@ -43,6 +41,7 @@ class WalletConnect {
   private _accounts: string[] | null;
   private _chainId: number | null;
   private _socket: WebSocket | null;
+  private _queue: ISocketMessage[];
 
   constructor(opts: IWalletConnectOptions) {
     this.protocol = "wc";
@@ -55,6 +54,7 @@ class WalletConnect {
     this._accounts = null;
     this._chainId = null;
     this._socket = null;
+    this._queue = [];
 
     if (!opts.node && !opts.uri) {
       throw new Error("Missing one of two required parameters: node | uri");
@@ -64,6 +64,10 @@ class WalletConnect {
     }
     if (opts.uri) {
       this.uri = opts.uri;
+      this._setToQueue({
+        topic: "",
+        payload: JSON.stringify([this.topic])
+      });
     }
   }
 
@@ -202,34 +206,13 @@ class WalletConnect {
   }
 
   public async init() {
-    let socketMessage: ISocketMessage | null = null;
     let session: IWalletConnectSession | null = this._getLocal();
     if (session) {
-      this.node = session.node;
-      this.clientId = session.clientId;
-      this.peerId = session.peerId;
-      this.peerMeta = session.peerMeta;
-      this.chainId = session.chainId;
-      this.accounts = session.accounts;
-      this.key = session.key;
+      this._reconnectSession(session);
     } else {
-      this._key = await generateKey();
-      session = this._setLocal();
-      const sessionRequest: IJSONRPCRequest = {
-        id: payloadId(),
-        jsonrpc: "2.0",
-        method: "wc_sessionRequest",
-        params: [this.clientId, this.clientMeta]
-      };
-      const payload = await this._encrypt(sessionRequest);
-      this.topic = uuid();
-      socketMessage = {
-        topic: this.topic,
-        event: "pub",
-        payload
-      };
+      session = await this._createSession();
     }
-    this._socketOpen(socketMessage);
+    this._socketOpen();
     return session;
   }
 
@@ -246,15 +229,48 @@ class WalletConnect {
 
   // -- Private Methods ----------------------------------------------------- //
 
-  private async _encrypt(data: IJSONRPCRequest) {
-    const key = this._key;
-    const result = await encrypt(data, key);
+  private _reconnectSession(session: IWalletConnectSession) {
+    this.node = session.node;
+    this.clientId = session.clientId;
+    this.peerId = session.peerId;
+    this.peerMeta = session.peerMeta;
+    this.chainId = session.chainId;
+    this.accounts = session.accounts;
+    this.key = session.key;
+  }
+
+  private async _createSession(): Promise<IWalletConnectSession> {
+    this._key = await generateKey();
+    const session = this._setLocal();
+    const sessionRequest: IJSONRPCRequest = {
+      id: payloadId(),
+      jsonrpc: "2.0",
+      method: "wc_sessionRequest",
+      params: [this.clientId, this.clientMeta]
+    };
+    const encryptionPayload = await this._encrypt(sessionRequest);
+    const payload = JSON.stringify(encryptionPayload);
+    this.topic = uuid();
+    const socketMessage = {
+      topic: this.topic,
+      payload
+    };
+    this._setToQueue(socketMessage);
+
+    return session;
+  }
+
+  private async _encrypt(data: IJSONRPCRequest): Promise<IEncryptionPayload> {
+    const key: ArrayBuffer = this._key;
+    const result: IEncryptionPayload = await encrypt(data, key);
     return result;
   }
 
-  private async _decrypt(payload: IEncryptionPayload) {
-    const key = this._key;
-    const result = await decrypt(payload, key);
+  private async _decrypt(
+    payload: IEncryptionPayload
+  ): Promise<IJSONRPCRequest | null> {
+    const key: ArrayBuffer = this._key;
+    const result: IJSONRPCRequest | null = await decrypt(payload, key);
     return result;
   }
 
@@ -270,7 +286,7 @@ class WalletConnect {
 
   private _parseUri(uri: string) {
     const result: IParseURIResult = parseWalletConnectUri(uri);
-    if (result.protocol === "protocol") {
+    if (result.protocol === this.protocol) {
       if (!result.topic || typeof result.topic === "string") {
         throw Error("Invalid or missing topic parameter value");
       }
@@ -292,7 +308,21 @@ class WalletConnect {
     }
   }
 
-  private _socketOpen(socketMessage: ISocketMessage | null = null) {
+  private _setToQueue(socketMessage: ISocketMessage) {
+    this._queue.push(socketMessage);
+  }
+
+  private _dispatchQueue() {
+    const queue = this._queue;
+
+    queue.forEach((socketMessage: ISocketMessage) =>
+      this._socketSend(socketMessage)
+    );
+
+    this._queue = [];
+  }
+
+  private _socketOpen() {
     const node = this.node;
 
     const url = node.startsWith("https")
@@ -304,20 +334,15 @@ class WalletConnect {
     const socket = new WebSocket(url);
 
     socket.onopen = () => {
-      const subscription = {
-        topic: this.clientId,
-        event: "sub",
-        payload: ""
-      };
+      this._setToQueue({
+        topic: "",
+        payload: JSON.stringify([this.clientId])
+      });
 
-      this._socketSend(subscription);
-
-      if (socketMessage) {
-        this._socketSend(socketMessage);
-      }
+      this._dispatchQueue();
     };
 
-    socket.onmessage = this._socketReceive;
+    socket.onmessage = (event: MessageEvent) => this._socketReceive(event);
 
     this._socket = socket;
   }
@@ -328,16 +353,32 @@ class WalletConnect {
     if (!socket) {
       throw new Error("Missing socket: required for sending message");
     }
-    const message: string = stringifyJSON(socketMessage);
+    const message: string = JSON.stringify(socketMessage);
 
     socket.send(message);
   }
 
   private async _socketReceive(event: MessageEvent) {
-    const socketMessage: IEncryptionPayload = parseJSON(event.data.payload);
-    const request: IJSONRPCRequest | null = await this._decrypt(socketMessage);
+    let socketMessage: ISocketMessage;
+    try {
+      socketMessage = JSON.parse(event.data);
+      console.log("_socketReceive socketMessage", socketMessage); // tslint:disable-line
+    } catch (error) {
+      throw new Error(`Failed to parse invalid JSON`);
+    }
+
+    let encryptionPayload: IEncryptionPayload;
+    try {
+      encryptionPayload = JSON.parse(socketMessage.payload);
+    } catch (error) {
+      throw new Error(`Failed to parse invalid JSON`);
+    }
+
+    const request: IJSONRPCRequest | null = await this._decrypt(
+      encryptionPayload
+    );
     if (request) {
-      // do something
+      console.log("_socketReceive request", request); // tslint:disable-line
     }
   }
 
@@ -345,14 +386,18 @@ class WalletConnect {
     let session = null;
     const local = localStorage ? localStorage.getItem(localStorageId) : null;
     if (local && typeof local === "string") {
-      session = parseJSON(local);
+      try {
+        session = JSON.parse(local);
+      } catch (error) {
+        throw new Error(`Failed to parse invalid JSON`);
+      }
     }
     return session;
   }
 
   private _setLocal(): IWalletConnectSession {
     const session: IWalletConnectSession = this.session;
-    const local: string = stringifyJSON(session);
+    const local: string = JSON.stringify(session);
     if (localStorage) {
       localStorage.setItem(localStorageId, local);
     }

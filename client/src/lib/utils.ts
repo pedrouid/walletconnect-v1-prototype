@@ -228,20 +228,6 @@ export function getMeta(): IClientMeta {
   return meta;
 }
 
-export function stringifyJSON(data: any): string {
-  return JSON.stringify(data);
-}
-
-export function parseJSON(str: string): any {
-  let result = null;
-  try {
-    result = JSON.parse(str);
-  } catch (error) {
-    throw new Error(`Failed to parse invalid JSON`);
-  }
-  return result;
-}
-
 export function parseWalletConnectUri(str: string): IParseURIResult {
   const pathStart: number = str.indexOf(":");
 

@@ -44,10 +44,12 @@ export function generateTestNodeUrl(): string {
   return url;
 }
 
-export async function initWalletConnect() {
+export async function initWalletConnect(uri?: string) {
   const node = generateTestNodeUrl();
 
-  const walletConnector = new WalletConnect({ node });
+  const opts = uri ? { uri } : { node };
+
+  const walletConnector = new WalletConnect(opts);
 
   await walletConnector.init();
 

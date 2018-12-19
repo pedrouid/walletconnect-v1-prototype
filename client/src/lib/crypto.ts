@@ -1,13 +1,11 @@
-import { IEncryptionPayload } from "./types";
+import { IJSONRPCRequest, IEncryptionPayload } from "./types";
 
 import {
   concatBuffers,
   convertBufferToHex,
   convertBufferToUtf8,
   convertHexToBuffer,
-  convertUtf8ToBuffer,
-  parseJSON,
-  stringifyJSON
+  convertUtf8ToBuffer
 } from "./utils";
 
 const AES_ALGORITHM: string = "AES-CBC";
@@ -127,7 +125,10 @@ export async function aesCbcDecrypt(
   return result;
 }
 
-export async function encrypt(data: object, key: ArrayBuffer): Promise<any> {
+export async function encrypt(
+  data: IJSONRPCRequest,
+  key: ArrayBuffer
+): Promise<IEncryptionPayload> {
   if (!key) {
     throw new Error("Missing key: required for encryption");
   }
@@ -136,7 +137,7 @@ export async function encrypt(data: object, key: ArrayBuffer): Promise<any> {
 
   const ivHex: string = convertBufferToHex(iv);
 
-  const contentString: string = stringifyJSON(data);
+  const contentString: string = JSON.stringify(data);
 
   const content: ArrayBuffer = convertUtf8ToBuffer(contentString);
   const cipherText: ArrayBuffer = await aesCbcEncrypt(content, key, iv);
@@ -156,7 +157,7 @@ export async function encrypt(data: object, key: ArrayBuffer): Promise<any> {
 export async function decrypt(
   payload: IEncryptionPayload,
   key: ArrayBuffer
-): Promise<any> {
+): Promise<IJSONRPCRequest | null> {
   if (!key) {
     throw new Error("Missing key: required for decryption");
   }
@@ -174,7 +175,12 @@ export async function decrypt(
 
   const utf8: string = convertBufferToUtf8(buffer);
 
-  const data: object = parseJSON(utf8);
+  let data: IJSONRPCRequest;
+  try {
+    data = JSON.parse(utf8);
+  } catch (error) {
+    throw new Error(`Failed to parse invalid JSON`);
+  }
 
   return data;
 }

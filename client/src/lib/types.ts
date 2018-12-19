@@ -6,7 +6,6 @@ export interface IEncryptionPayload {
 
 export interface ISocketMessage {
   topic: string;
-  event: string;
   payload: string;
 }
 

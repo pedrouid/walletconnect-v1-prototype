@@ -3,25 +3,38 @@ import styled from "styled-components";
 
 import { colors } from "../styles";
 
-interface ICardProps {
+interface ICardStyleProps {
+  maxWidth: number;
+}
+
+interface ICardProps extends ICardStyleProps {
   children: React.ReactNode;
 }
 
-const SCard = styled.div`
+const SCardStyleTypes = styled.div<ICardStyleProps>``;
+const SCard = styled(SCardStyleTypes)`
   width: 100%;
-  max-width: 600px;
+  max-width: ${({ maxWidth }) => `${maxWidth}px`};
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   background: rgb(${colors.white});
+  color: rgb(${colors.dark});
   border-radius: 6px;
   padding: 20px;
-  margin: 20px;
 `;
 
 const Card = (props: ICardProps) => {
-  return <SCard {...props}>{props.children}</SCard>;
+  return (
+    <SCard maxWidth={props.maxWidth} {...props}>
+      {props.children}
+    </SCard>
+  );
+};
+
+Card.defaultProps = {
+  maxWidth: 600
 };
 
 export default Card;

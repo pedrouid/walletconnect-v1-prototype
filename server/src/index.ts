@@ -3,8 +3,6 @@ import fastify from 'fastify'
 import fastifyStatic from 'fastify-static'
 import WebSocket from 'ws'
 
-import bridge from './bridge'
-
 const server = fastify({ logger: process.env.NODE_ENV !== 'production' })
 
 const staticRoot = path.join(__dirname, '../../client/build')
@@ -19,16 +17,80 @@ server.get('/', (req, res) => {
 
 const wsServer = new WebSocket.Server({ server: server.server })
 
+interface ISocketMessage {
+  topic: string
+  payload: string
+}
+
+interface ISocketSub {
+  topics: string[]
+  socket: WebSocket
+}
+
+const subs: ISocketSub[] = []
+const pubs: ISocketMessage[] = []
+
+function socketSend (socket: WebSocket, socketMessage: ISocketMessage) {
+  if (socket.readyState === 1) {
+    socket.send(JSON.stringify(socketMessage))
+  }
+}
+
+const SubController = (socket: WebSocket, socketMessage: ISocketMessage) => {
+  const topics = JSON.parse(socketMessage.payload)
+
+  const subscriber = {
+    socket,
+    topics
+  }
+
+  subs.push(subscriber)
+
+  const pending = pubs.filter((pendingMessage: ISocketMessage) =>
+    topics.includes(pendingMessage.topic)
+  )
+
+  if (pending && pending.length) {
+    pending.forEach((pendingMessage: ISocketMessage) =>
+      socketSend(socket, pendingMessage)
+    )
+  }
+}
+
+const PubController = (socketMessage: ISocketMessage) => {
+  const subscribers: ISocketSub[] = subs.filter((subscriber: ISocketSub) => {
+    if (subscriber.topics.includes(socketMessage.topic)) {
+      return subscriber
+    }
+  })
+
+  if (subscribers.length) {
+    subscribers.forEach((subscriber: ISocketSub) =>
+      socketSend(subscriber.socket, socketMessage)
+    )
+  } else {
+    pubs.push(socketMessage)
+  }
+}
+
 server.ready(() => {
-  wsServer.on('connection', function (socket) {
-    socket.on('message', async function (data) {
-      const message = String(data)
-      let socketMessage = null
-      console.log('message =>', message)
+  wsServer.on('connection', (socket: WebSocket) => {
+    socket.on('message', async data => {
+      const message: string = String(data)
+
+      let socketMessage: ISocketMessage
+
       if (message) {
+        console.log('message =>', message)
+
         try {
           socketMessage = JSON.parse(message)
-          bridge(socket, socketMessage)
+
+          if (!socketMessage.topic.trim()) {
+            SubController(socket, socketMessage)
+          } else {
+            PubController(socketMessage)
+          }
         } catch (e) {
           console.error(e)
         }

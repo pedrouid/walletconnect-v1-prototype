@@ -52,40 +52,63 @@ const SSecondLine = styled(SFirstLine)`
   transform: rotate(90deg);
 `;
 
-interface IQRCodeScannerState {
-  delay: number;
+export interface IQRCodeValidateResponse {
+  error: Error | null;
+  result: any | null;
 }
 
-class QRCodeScanner extends React.Component<any> {
+interface IQRCodeScannerProps {
+  onValidate: (data: string) => IQRCodeValidateResponse;
+  onScan: (data: any) => void;
+  onError: (error: Error) => void;
+  onClose: () => void;
+}
+
+interface IQRCodeScannerState {
+  delay: number | false;
+}
+
+class QRCodeScanner extends React.Component<IQRCodeScannerProps> {
   public state: IQRCodeScannerState;
-  constructor(props: any) {
+
+  constructor(props: IQRCodeScannerProps) {
     super(props);
     this.state = {
       delay: 500
     };
   }
-  public stopRecording = () => {
-    this.setState({ delay: false });
+
+  public stopRecording = async () => {
+    await this.setState({ delay: false });
   };
+
   public handleScan = (data: string) => {
-    const { onValidate, onScan, onError } = this.props;
     if (data) {
-      const { result, error } = onValidate(data);
+      const { result, error } = this.props.onValidate(data);
       if (result) {
         this.stopRecording();
-        onScan(result);
+        this.props.onScan(result);
       } else {
-        onError(error);
+        this.handleError(error);
       }
     }
   };
-  public handleError = (error: Error) => {
-    this.props.onError(error);
+
+  public handleError = (error: Error | null) => {
+    if (error) {
+      this.props.onError(error);
+    }
   };
-  public onClose = () => {
-    this.stopRecording();
-    this.props.onClose();
+
+  public onClose = async () => {
+    try {
+      await this.stopRecording();
+      this.props.onClose();
+    } catch (error) {
+      this.handleError(error);
+    }
   };
+
   public componentWillUnmount() {
     this.stopRecording();
   }
