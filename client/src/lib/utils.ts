@@ -214,12 +214,12 @@ export function getMeta(): IClientMeta {
   const name: string = getName();
   const description: string = getDescription();
   const ssl: boolean = window.location.href.startsWith("https");
-  const host: string = window.location.hostname;
+  const url: string = window.location.origin;
   const icons: string[] = getIcons();
 
   const meta: IClientMeta = {
     description,
-    host,
+    url,
     icons,
     name,
     ssl
@@ -234,16 +234,17 @@ export function parseWalletConnectUri(str: string): IParseURIResult {
   const pathEnd: number | undefined =
     str.indexOf("?") !== -1 ? str.indexOf("?") : undefined;
 
-  const protocol: string = str.substr(0, pathStart);
+  const protocol: string = str.substring(0, pathStart);
 
-  const path: string = str.substr(pathStart + 1, pathEnd);
+  const path: string = str.substring(pathStart + 1, pathEnd);
 
   function parseRequiredParams(path: string): IRequiredParamsResult {
     const separator = "@";
+
     const values = path.split(separator);
 
     const requiredParams = {
-      topic: values[0],
+      handshakeTopic: values[0],
       version: parseInt(values[1], 10)
     };
 

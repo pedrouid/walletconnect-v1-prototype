@@ -1,5 +1,3 @@
-import WalletConnect from "./lib/walletconnect";
-
 export function isMobile(): boolean {
   let mobile: boolean = false;
 
@@ -31,27 +29,4 @@ export function isMobile(): boolean {
   mobile = hasMobileUserAgent();
 
   return mobile;
-}
-
-export function generateTestNodeUrl(): string {
-  const host: string = window.location.host;
-  const protocol: string = window.location.href.startsWith("https")
-    ? "wss"
-    : "ws";
-  const url: string = `${protocol}://${
-    process.env.NODE_ENV === "development" ? "localhost:5000" : host
-  }`;
-  return url;
-}
-
-export async function initWalletConnect(uri?: string) {
-  const node = generateTestNodeUrl();
-
-  const opts = uri ? { uri } : { node };
-
-  const walletConnector = new WalletConnect(opts);
-
-  await walletConnector.init();
-
-  return walletConnector;
 }

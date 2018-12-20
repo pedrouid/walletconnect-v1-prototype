@@ -76,13 +76,25 @@ export async function verifyHmac(
   key: ArrayBuffer
 ): Promise<boolean> {
   const cipherText: ArrayBuffer = convertHexToBuffer(payload.data);
+  console.log("verifyHmac cipherText", cipherText); // tslint:disable-line
+
   const iv: ArrayBuffer = convertHexToBuffer(payload.iv);
+  console.log("verifyHmac iv", iv); // tslint:disable-line
+
   const hmac: ArrayBuffer = convertHexToBuffer(payload.hmac);
+  console.log("verifyHmac hmac", hmac); // tslint:disable-line
+
   const hmacHex: string = convertBufferToHex(hmac);
+  console.log("verifyHmac hmacHex", hmacHex); // tslint:disable-line
 
   const unsigned: ArrayBuffer = concatBuffers(cipherText, iv);
+  console.log("verifyHmac unsigned", unsigned); // tslint:disable-line
+
   const chmac: ArrayBuffer = await createHmac(unsigned, key);
+  console.log("verifyHmac chmac", chmac); // tslint:disable-line
+
   const chmacHex: string = convertBufferToHex(chmac);
+  console.log("verifyHmac chmacHex", chmacHex); // tslint:disable-line
 
   if (hmacHex === chmacHex) {
     return true;
@@ -134,18 +146,31 @@ export async function encrypt(
   }
 
   const iv: ArrayBuffer = await generateKey(128);
+  console.log("encrypt iv", iv); // tslint:disable-line
 
   const ivHex: string = convertBufferToHex(iv);
+  console.log("encrypt ivHex", ivHex); // tslint:disable-line
 
   const contentString: string = JSON.stringify(data);
+  console.log("encrypt contentString", contentString); // tslint:disable-line
 
   const content: ArrayBuffer = convertUtf8ToBuffer(contentString);
+  console.log("encrypt content", content); // tslint:disable-line
+
   const cipherText: ArrayBuffer = await aesCbcEncrypt(content, key, iv);
+  console.log("encrypt cipherText", cipherText); // tslint:disable-line
+
   const cipherTextHex: string = convertBufferToHex(cipherText);
+  console.log("encrypt cipherTextHex", cipherTextHex); // tslint:disable-line
 
   const unsigned: ArrayBuffer = concatBuffers(cipherText, iv);
+  console.log("encrypt unsigned", unsigned); // tslint:disable-line
+
   const hmac: ArrayBuffer = await createHmac(unsigned, key);
+  console.log("encrypt hmac", hmac); // tslint:disable-line
+
   const hmacHex: string = convertBufferToHex(hmac);
+  console.log("encrypt hmacHex", hmacHex); // tslint:disable-line
 
   return {
     data: cipherTextHex,
@@ -163,17 +188,23 @@ export async function decrypt(
   }
 
   const verified: boolean = await verifyHmac(payload, key);
+  console.log("decrypt verified", verified); // tslint:disable-line
 
   if (!verified) {
     return null;
   }
 
   const cipherText: ArrayBuffer = convertHexToBuffer(payload.data);
+  console.log("decrypt cipherText", cipherText); // tslint:disable-line
+
   const iv: ArrayBuffer = convertHexToBuffer(payload.iv);
+  console.log("decrypt iv", iv); // tslint:disable-line
 
   const buffer: ArrayBuffer = await aesCbcDecrypt(cipherText, key, iv);
+  console.log("decrypt buffer", buffer); // tslint:disable-line
 
   const utf8: string = convertBufferToUtf8(buffer);
+  console.log("decrypt utf8", utf8); // tslint:disable-line
 
   let data: IJSONRPCRequest;
   try {

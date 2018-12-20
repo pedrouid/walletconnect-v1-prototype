@@ -18,14 +18,19 @@ export interface IJSONRPCRequest {
 
 export interface IClientMeta {
   description: string;
-  host: string;
+  url: string;
   icons: string[];
   name: string;
   ssl: boolean;
 }
 
+export interface IEventEmitter {
+  method: string;
+  callback: (error: Error | null, request: any | null) => void;
+}
+
 export interface IRequiredParamsResult {
-  topic: string;
+  handshakeTopic: string;
   version: number;
 }
 
@@ -36,7 +41,7 @@ export interface IQueryParamsResult {
 
 export interface IParseURIResult {
   protocol: string;
-  topic: string;
+  handshakeTopic: string;
   version: number;
   node: string;
   key: string;
@@ -53,9 +58,10 @@ export interface IWalletConnectSession {
   node: string;
   key: string;
   clientId: string;
-  clientMeta: IClientMeta | null;
+  clientMeta: IClientMeta;
   peerId: string | null;
   peerMeta: IClientMeta | null;
+  handshakeTopic: string | null;
 }
 
 export interface IWalletConnectJSON {

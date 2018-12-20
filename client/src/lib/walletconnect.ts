@@ -4,6 +4,7 @@ import {
   ISocketMessage,
   IJSONRPCRequest,
   IClientMeta,
+  IEventEmitter,
   IParseURIResult,
   IWalletConnectSession,
   IWalletConnectOptions,
@@ -37,11 +38,13 @@ class WalletConnect {
   private _clientMeta: IClientMeta | null;
   private _peerId: string | null;
   private _peerMeta: IClientMeta | null;
-  private _topic: string | null;
+  private _handshakeTopic: string | null;
   private _accounts: string[] | null;
   private _chainId: number | null;
   private _socket: WebSocket | null;
   private _queue: ISocketMessage[];
+  private _eventEmitters: IEventEmitter[];
+  private _connected: boolean;
 
   constructor(opts: IWalletConnectOptions) {
     this.protocol = "wc";
@@ -50,11 +53,13 @@ class WalletConnect {
     this._clientMeta = null;
     this._peerId = null;
     this._peerMeta = null;
-    this._topic = null;
+    this._handshakeTopic = null;
     this._accounts = null;
     this._chainId = null;
     this._socket = null;
     this._queue = [];
+    this._eventEmitters = [];
+    this._connected = false;
 
     if (!opts.node && !opts.uri) {
       throw new Error("Missing one of two required parameters: node | uri");
@@ -66,9 +71,11 @@ class WalletConnect {
       this.uri = opts.uri;
       this._setToQueue({
         topic: "",
-        payload: JSON.stringify([this.topic])
+        payload: JSON.stringify([this._handshakeTopic])
       });
     }
+
+    this._registerInternalEvents();
   }
 
   set node(value: string) {
@@ -143,15 +150,15 @@ class WalletConnect {
     return peerMeta;
   }
 
-  set topic(value) {
+  set handshakeTopic(value) {
     if (!value) {
       return;
     }
-    this._topic = value;
+    this._handshakeTopic = value;
   }
 
-  get topic() {
-    return this._topic;
+  get handshakeTopic() {
+    return this._handshakeTopic;
   }
 
   get uri() {
@@ -163,8 +170,8 @@ class WalletConnect {
     if (!value) {
       return;
     }
-    const { topic, node, key } = this._parseUri(value);
-    this.topic = topic;
+    const { handshakeTopic, node, key } = this._parseUri(value);
+    this._handshakeTopic = handshakeTopic;
     this.node = node;
     this.key = key;
   }
@@ -187,6 +194,14 @@ class WalletConnect {
     return accounts;
   }
 
+  set connected(value) {
+    return;
+  }
+
+  get connected() {
+    return this._connected;
+  }
+
   get session() {
     const session: IWalletConnectSession = {
       accounts: this.accounts || [],
@@ -196,7 +211,8 @@ class WalletConnect {
       clientId: this.clientId,
       clientMeta: this.clientMeta,
       peerId: this.peerId || null,
-      peerMeta: this.peerMeta || null
+      peerMeta: this.peerMeta || null,
+      handshakeTopic: this._handshakeTopic || null
     };
     return session;
   }
@@ -210,10 +226,23 @@ class WalletConnect {
     if (session) {
       this._reconnectSession(session);
     } else {
-      session = await this._createSession();
+      if (!this._handshakeTopic) {
+        session = await this._createSession();
+      }
     }
     this._socketOpen();
     return session;
+  }
+
+  public on(
+    method: string,
+    callback: (error: Error | null, request: any | null) => void
+  ): void {
+    const eventEmitter = {
+      method,
+      callback
+    };
+    this._eventEmitters.push(eventEmitter);
   }
 
   public toJSON(): IWalletConnectJSON {
@@ -230,32 +259,38 @@ class WalletConnect {
   // -- Private Methods ----------------------------------------------------- //
 
   private _reconnectSession(session: IWalletConnectSession) {
+    this.accounts = session.accounts;
+    this.chainId = session.chainId;
     this.node = session.node;
+    this.key = session.key;
     this.clientId = session.clientId;
+    this.clientMeta = session.clientMeta;
     this.peerId = session.peerId;
     this.peerMeta = session.peerMeta;
-    this.chainId = session.chainId;
-    this.accounts = session.accounts;
-    this.key = session.key;
+    this.handshakeTopic = session.handshakeTopic;
   }
 
   private async _createSession(): Promise<IWalletConnectSession> {
-    this._key = await generateKey();
-    const session = this._setLocal();
+    this._key = this._key || (await generateKey());
+
     const sessionRequest: IJSONRPCRequest = {
       id: payloadId(),
       jsonrpc: "2.0",
       method: "wc_sessionRequest",
       params: [this.clientId, this.clientMeta]
     };
+
     const encryptionPayload = await this._encrypt(sessionRequest);
     const payload = JSON.stringify(encryptionPayload);
-    this.topic = uuid();
+
+    this._handshakeTopic = this._handshakeTopic || uuid();
     const socketMessage = {
-      topic: this.topic,
+      topic: this._handshakeTopic,
       payload
     };
+
     this._setToQueue(socketMessage);
+    const session = this._setLocal();
 
     return session;
   }
@@ -274,35 +309,57 @@ class WalletConnect {
     return result;
   }
 
+  private _registerInternalEvents() {
+    this.on("wc_sessionRequest", (error, request) => {
+      if (error) {
+        throw error;
+      }
+      this.peerId = request.params[0];
+      this.peerMeta = request.params[1];
+    });
+
+    this.on("wc_sessionStatus", (error, request) => {
+      if (error) {
+        throw error;
+      }
+      this._connected = request.params[0];
+      this._chainId = request.params[1];
+      this._accounts = request.params[2];
+    });
+  }
+
   private _formatUri() {
     const protocol = this.protocol;
-    const topic = this.topic;
+    const handshakeTopic = this._handshakeTopic;
     const version = this.version;
     const node = encodeURIComponent(this.node);
     const key = this.key;
-    const uri = `${protocol}:${topic}@${version}?node=${node}&key=${key}`;
+    const uri = `${protocol}:${handshakeTopic}@${version}?node=${node}&key=${key}`;
+    console.log("uri", uri); // tslint:disable-line
     return uri;
   }
 
   private _parseUri(uri: string) {
     const result: IParseURIResult = parseWalletConnectUri(uri);
-    if (result.protocol === this.protocol) {
-      if (!result.topic || typeof result.topic === "string") {
-        throw Error("Invalid or missing topic parameter value");
-      }
-      const topic = result.topic;
+    console.log("_parseUri result", result); // tslint:disable-line
 
-      if (!result.node || typeof result.node === "string") {
+    if (result.protocol === this.protocol) {
+      if (!result.handshakeTopic) {
+        throw Error("Invalid or missing handshakeTopic parameter value");
+      }
+      const handshakeTopic = result.handshakeTopic;
+
+      if (!result.node) {
         throw Error("Invalid or missing node url parameter value");
       }
       const node = decodeURIComponent(result.node);
 
-      if (!result.key || typeof result.key === "string") {
+      if (!result.key) {
         throw Error("Invalid or missing kkey parameter value");
       }
       const key = result.key;
 
-      return { topic, node, key };
+      return { handshakeTopic, node, key };
     } else {
       throw new Error("URI format doesn't follow WalletConnect protocol");
     }
@@ -377,8 +434,24 @@ class WalletConnect {
     const request: IJSONRPCRequest | null = await this._decrypt(
       encryptionPayload
     );
+    console.log("_socketReceive request", request); // tslint:disable-line
+
     if (request) {
-      console.log("_socketReceive request", request); // tslint:disable-line
+      const method: string = request.method;
+
+      console.log("_socketReceive request.method", request.method); // tslint:disable-line
+
+      const eventEmitters = this._eventEmitters.filter(
+        (eventEmitter: IEventEmitter) => eventEmitter.method === method
+      );
+
+      console.log("_socketReceive eventEmitters", eventEmitters); // tslint:disable-line
+
+      if (eventEmitters && eventEmitters.length) {
+        eventEmitters.forEach((eventEmitter: IEventEmitter) =>
+          eventEmitter.callback(null, request)
+        );
+      }
     }
   }
 
