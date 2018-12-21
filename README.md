@@ -1,3 +1,3 @@
 # nodejs-walletconnect-example
 
-Example Websocket Server and Client implementation
+Prototype of WalletConnect v1.0 protocol
