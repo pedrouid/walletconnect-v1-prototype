@@ -2,7 +2,10 @@ import {
   IClientMeta,
   IRequiredParamsResult,
   IQueryParamsResult,
-  IParseURIResult
+  IParseURIResult,
+  IFullRpcRequest,
+  IRpcResponse,
+  IInternalEvent
 } from "./types";
 
 export function concatBuffers(...args: ArrayBuffer[]): ArrayBuffer {
@@ -288,4 +291,16 @@ export function parseWalletConnectUri(str: string): IParseURIResult {
   };
 
   return result;
+}
+
+export function isRpcRequest(object: any): object is IFullRpcRequest {
+  return "method" in object;
+}
+
+export function isRpcResponse(object: any): object is IRpcResponse {
+  return "result" in object;
+}
+
+export function isInternalEvent(object: any): object is IInternalEvent {
+  return "event" in object;
 }

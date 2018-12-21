@@ -5,17 +5,43 @@ import WalletConnect from "./lib/walletconnect";
 
 import Button from "./components/Button";
 import Card from "./components/Card";
+import Header from "./components/Header";
+import PeerMeta from "./components/PeerMeta";
+import AccountDetails from "./components/AccountDetails";
 import QRCodeDisplay from "./components/QRCodeDisplay";
 import QRCodeScanner, {
   IQRCodeValidateResponse
 } from "./components/QRCodeScanner";
-import { isMobile } from "./helpers";
+
+import { ITxData, IChainData } from "./helpers/types";
+import { apiGetGasPrices, apiGetAccountNonce } from "./helpers/api";
+import { isMobile, sanitizeHex, getChainData } from "./helpers/utilities";
+import {
+  convertAmountToRawNumber,
+  convertStringToHex
+} from "./helpers/bignumber";
+// import { fonts } from "./styles";
 
 const SContainer = styled.div`
-  margin: 0;
-  padding: 0;
+  display: flex;
+  flex-direction: column;
+
   width: 100%;
   height: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0;
+`;
+
+const SColumn = styled.div`
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+`;
+
+const SContent = styled.div`
+  width: 100%;
+  flex: 1;
   padding: 30px;
   display: flex;
   flex-direction: column;
@@ -29,25 +55,71 @@ const STitle = styled.h1`
   font-size: calc(10px + 2vmin);
 `;
 
+const SActions = styled.div`
+  margin: 20px auto;
+  display: flex;
+  justify-content: space-around;
+  & > * {
+    margin: 0 5px;
+  }
+`;
+
 interface IAppState {
   loading: boolean;
   mobile: boolean;
   scanner: boolean;
   walletConnector: WalletConnect | null;
   uri: string;
-  peer: {
-    id: string;
-    meta: {
-      description: string;
-      url: string;
-      icons: string[];
-      name: string;
-    };
+  peerMeta: {
+    description: string;
+    url: string;
+    icons: string[];
+    name: string;
+    ssl: boolean;
   };
   connected: boolean;
   chainId: number;
+  chainData: IChainData;
   accounts: string[];
+  address: string;
+  requests: any[];
+  results: any[];
 }
+
+const testAccounts = [
+  {
+    address: "0x6e4d387c925a647844623762aB3C4a5B3acd9540",
+    privateKey:
+      "c13d25f6ad00f532b530d75bf3a5f16b8e11e5619bc9b165a6ac99b150a2f456"
+  },
+  {
+    address: "0xeF8fD2BDC6F6Be83F92054F8Ecd6B010f28CE7F4",
+    privateKey:
+      "67543bed4cc767d6153daf55547c5fa751657dab953d4bc01846c7a6a4fc4782"
+  }
+];
+
+const defaultChainId = 3;
+
+const INITIAL_STATE = {
+  scanner: false,
+  walletConnector: null,
+  uri: "",
+  peerMeta: {
+    description: "",
+    url: "",
+    icons: [],
+    name: "",
+    ssl: false
+  },
+  connected: false,
+  chainId: defaultChainId,
+  chainData: getChainData(defaultChainId),
+  accounts: [],
+  address: "",
+  requests: [],
+  results: []
+};
 
 class App extends React.Component<{}> {
   public state: IAppState;
@@ -57,31 +129,23 @@ class App extends React.Component<{}> {
     this.state = {
       loading: false,
       mobile: isMobile(),
-      scanner: false,
-      walletConnector: null,
-      uri: "",
-      peer: {
-        id: "",
-        meta: {
-          description: "",
-          url: "",
-          icons: [],
-          name: ""
-        }
-      },
-      connected: false,
-      chainId: 1,
-      accounts: []
+      ...INITIAL_STATE
     };
   }
   public componentDidMount() {
-    if (!this.state.mobile) {
-      this.initWalletConnect();
-    }
+    this.initApp();
   }
 
+  public initApp = () => {
+    if (!this.state.mobile) {
+      this.initWalletConnect();
+    } else {
+      this.initWallet();
+    }
+  };
+
   public initWalletConnect = async () => {
-    let { uri } = this.state;
+    const { uri } = this.state;
 
     this.setState({ loading: true });
 
@@ -94,16 +158,167 @@ class App extends React.Component<{}> {
 
       await walletConnector.init();
 
-      uri = walletConnector.uri;
+      await this.setState({
+        loading: false,
+        walletConnector,
+        uri: walletConnector.uri
+      });
 
-      await this.setState({ loading: false, walletConnector, uri });
-
-      this.registerEvents();
+      this.subscribeToEvents();
     } catch (error) {
       this.setState({ loading: false });
 
       throw error;
     }
+  };
+
+  public initWallet = async () => {
+    this.generateTestAccounts();
+
+    const local = localStorage ? localStorage.getItem("wcsmngt") : null;
+
+    if (local) {
+      let session;
+
+      try {
+        session = JSON.parse(local);
+      } catch (error) {
+        throw error;
+      }
+
+      const walletConnector = new WalletConnect({ session });
+      this.setState({ walletConnector });
+    }
+  };
+
+  public approveSession = () => {
+    const { walletConnector, chainId, accounts } = this.state;
+    if (walletConnector) {
+      walletConnector.approveSession({ chainId, accounts });
+    }
+    this.setState({ walletConnector });
+  };
+
+  public rejectSession = () => {
+    const { walletConnector } = this.state;
+    if (walletConnector) {
+      walletConnector.rejectSession();
+    }
+    this.setState({ walletConnector });
+  };
+
+  public killSession = () => {
+    const { walletConnector } = this.state;
+    if (walletConnector) {
+      walletConnector.killSession();
+    }
+    this.resetApp();
+  };
+
+  public resetApp = () => {
+    this.setState({ ...INITIAL_STATE });
+    this.initApp();
+  };
+
+  public sendTransaction = async () => {
+    const { walletConnector, address, chainData } = this.state;
+    let { results } = this.state;
+
+    if (walletConnector && chainData) {
+      const nonceRes = await apiGetAccountNonce(address, chainData);
+      const nonce = nonceRes.data.result;
+      const gasPrices = await apiGetGasPrices();
+      const gasPriceRaw = gasPrices.slow.price;
+      const gasPrice = sanitizeHex(
+        convertStringToHex(convertAmountToRawNumber(gasPriceRaw, 9))
+      );
+      const gasLimitRaw = 21000;
+      const gasLimit = sanitizeHex(convertStringToHex(gasLimitRaw));
+
+      const tx: ITxData = {
+        from: address,
+        to: address,
+        nonce,
+        gasPrice,
+        gasLimit,
+        value: "0x00",
+        data: "0x"
+      };
+
+      const result = await walletConnector.sendTransaction(tx);
+      results = [...results, result];
+    }
+    this.setState({ walletConnector, results });
+  };
+
+  public signTypedData = async () => {
+    const { walletConnector, address, chainId } = this.state;
+    let { results } = this.state;
+
+    if (walletConnector) {
+      const msgParams = [
+        address,
+        {
+          types: {
+            EIP712Domain: [
+              { name: "name", type: "string" },
+              { name: "version", type: "string" },
+              { name: "chainId", type: "uint256" },
+              { name: "verifyingContract", type: "address" }
+            ],
+            Person: [
+              { name: "name", type: "string" },
+              { name: "account", type: "address" }
+            ],
+            Mail: [
+              { name: "from", type: "Person" },
+              { name: "to", type: "Person" },
+              { name: "contents", type: "string" }
+            ]
+          },
+          primaryType: "Mail",
+          domain: {
+            name: "Example Dapp",
+            version: "0.7.0",
+            chainId,
+            verifyingContract: "0x0000000000000000000000000000000000000000"
+          },
+          message: {
+            from: {
+              name: "Alice",
+              account: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            to: {
+              name: "Bob",
+              account: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            contents: "Hey, Bob!"
+          }
+        }
+      ];
+      const result = await walletConnector.signMessage(msgParams);
+      results = [...results, result];
+    }
+    this.setState({ walletConnector, results });
+  };
+
+  public signMessage = async () => {
+    const { walletConnector, accounts } = this.state;
+    let { results } = this.state;
+
+    if (walletConnector) {
+      const address = accounts[0];
+      const msgParams = [address, "My email is john@doe.com - 1537836206101"];
+      const result = await walletConnector.signMessage(msgParams);
+      results = [...results, result];
+    }
+    this.setState({ walletConnector, results });
+  };
+
+  public generateTestAccounts = () => {
+    const accounts = testAccounts.map(account => account.address);
+    const address = accounts[0];
+    this.setState({ accounts, address });
   };
 
   public generateTestNodeUrl(): string {
@@ -117,37 +332,77 @@ class App extends React.Component<{}> {
     return url;
   }
 
-  public registerEvents = () => {
+  public subscribeToEvents = () => {
     const { walletConnector } = this.state;
 
     if (walletConnector) {
-      walletConnector.on("wc_sessionRequest", (error, request) => {
+      walletConnector.on("session_request", (error, payload) => {
         if (error) {
           throw error;
         }
+        const { peerMeta } = payload.params[0];
+        this.setState({ peerMeta });
+      });
+
+      walletConnector.on("session_update", (error, payload) => {
+        if (error) {
+          throw error;
+        }
+        const { chainId, accounts } = payload.params[0];
+        const address = accounts[0];
+        const chainData = getChainData(chainId);
+        this.setState({ chainId, accounts, address, chainData });
+      });
+
+      walletConnector.on("request", (error, payload) => {
+        if (error) {
+          throw error;
+        }
+        const requests = [...this.state.requests, payload];
+        this.setState({ requests });
+      });
+
+      walletConnector.on("connect", (error, payload) => {
+        if (error) {
+          throw error;
+        }
+        const { chainId, accounts } = payload.params[0];
+        const address = accounts[0];
+        const chainData = getChainData(chainId);
         this.setState({
-          peer: {
-            id: request.params[0],
-            meta: {
-              description: request.params[1].description,
-              url: request.params[1].url,
-              icons: request.params[1].icons,
-              name: request.params[1].name
-            }
-          }
+          connected: true,
+          chainId,
+          accounts,
+          address,
+          chainData
         });
       });
 
-      walletConnector.on("wc_sessionStatus", (error, request) => {
+      walletConnector.on("disconnect", (error, payload) => {
         if (error) {
           throw error;
         }
         this.setState({
-          connected: request.params[0],
-          chainId: request.params[1],
-          accounts: request.params[2]
+          connected: false,
+          chainId: defaultChainId,
+          accounts: [],
+          address: "",
+          chainData: getChainData(defaultChainId)
         });
       });
+
+      if (walletConnector.connected) {
+        const { chainId, accounts } = walletConnector;
+        const address = accounts[0];
+        const chainData = getChainData(chainId);
+        this.setState({
+          connected: true,
+          chainId,
+          accounts,
+          address,
+          chainData
+        });
+      }
 
       this.setState({ walletConnector });
     }
@@ -191,44 +446,86 @@ class App extends React.Component<{}> {
       loading,
       mobile,
       uri,
-      peer,
+      peerMeta,
       scanner,
       connected,
       accounts,
-      chainId
+      address,
+      chainId,
+      chainData
     } = this.state;
     return (
       <SContainer>
-        <Card maxWidth={400}>
-          <STitle>{mobile ? `Wallet` : `Dapp`}</STitle>
+        <Header
+          connected={connected}
+          address={address}
+          chainId={chainId}
+          killSession={this.killSession}
+        />
+        <SContent>
           {mobile ? (
-            peer.meta.name ? (
-              <div>
-                <img src={peer.meta.icons[0]} alt={peer.meta.name} />
-                <div>{peer.meta.name}</div>
-                <div>{peer.meta.description}</div>
-                <div>{peer.meta.url}</div>
-              </div>
-            ) : (
-              <Button onClick={this.toggleScanner}>{`Scan`}</Button>
-            )
-          ) : !loading ? (
-            uri ? (
-              connected ? (
-                <div>
-                  <div>{`accounts: ${JSON.stringify(accounts, null, 2)}`}</div>
-                  <div>{`chainId: ${chainId}`}</div>
-                </div>
+            <Card maxWidth={400}>
+              <STitle>{`Wallet`}</STitle>
+              {!connected ? (
+                peerMeta.name ? (
+                  <SColumn>
+                    <PeerMeta peerMeta={peerMeta} />
+                    <SActions>
+                      <Button onClick={this.approveSession}>{`Approve`}</Button>
+                      <Button onClick={this.rejectSession}>{`Reject`}</Button>
+                    </SActions>
+                  </SColumn>
+                ) : (
+                  <SColumn>
+                    <AccountDetails accounts={accounts} chainData={chainData} />
+                    <SActions>
+                      <Button onClick={this.toggleScanner}>{`Scan`}</Button>
+                    </SActions>
+                  </SColumn>
+                )
               ) : (
-                <QRCodeDisplay data={uri} />
-              )
-            ) : (
-              <span>{`missing uri`}</span>
-            )
+                <SColumn>
+                  <AccountDetails accounts={accounts} chainData={chainData} />
+                  <h6>{"Connected to"}</h6>
+                  <PeerMeta peerMeta={peerMeta} />
+                </SColumn>
+              )}
+            </Card>
           ) : (
-            <span>{`loading`}</span>
+            <Card maxWidth={400}>
+              <STitle>{`Dapp`}</STitle>
+              {!loading ? (
+                uri ? (
+                  connected ? (
+                    <SColumn>
+                      <AccountDetails
+                        accounts={accounts}
+                        chainData={chainData}
+                      />
+                      <SActions>
+                        <Button
+                          onClick={this.sendTransaction}
+                        >{`Send Transaction`}</Button>
+                        <Button
+                          onClick={this.signMessage}
+                        >{`Sign Message`}</Button>
+                        <Button
+                          onClick={this.signTypedData}
+                        >{`Sign Typed Data`}</Button>
+                      </SActions>
+                    </SColumn>
+                  ) : (
+                    <QRCodeDisplay data={uri} />
+                  )
+                ) : (
+                  <span>{`missing uri`}</span>
+                )
+              ) : (
+                <span>{`loading`}</span>
+              )}
+            </Card>
           )}
-        </Card>
+        </SContent>
         {scanner && (
           <QRCodeScanner
             onValidate={this.onQRCodeValidate}

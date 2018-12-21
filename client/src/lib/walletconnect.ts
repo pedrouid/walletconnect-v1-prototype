@@ -2,13 +2,19 @@ import { decrypt, encrypt, generateKey } from "./crypto";
 import {
   IEncryptionPayload,
   ISocketMessage,
-  IJSONRPCRequest,
+  ISessionStatus,
+  ISessionError,
+  IInternalEvent,
+  IRpcResponse,
+  ITxData,
+  IPartialRpcRequest,
+  IFullRpcRequest,
   IClientMeta,
   IEventEmitter,
   IParseURIResult,
+  ISessionParams,
   IWalletConnectSession,
-  IWalletConnectOptions,
-  IWalletConnectJSON
+  IWalletConnectOptions
 } from "./types";
 import {
   convertBufferToHex,
@@ -16,7 +22,10 @@ import {
   getMeta,
   payloadId,
   uuid,
-  parseWalletConnectUri
+  parseWalletConnectUri,
+  isRpcRequest,
+  isRpcResponse,
+  isInternalEvent
 } from "./utils";
 
 const localStorageId: string = "wcsmngt";
@@ -32,15 +41,18 @@ if (
 class WalletConnect {
   private protocol: string;
   private version: number;
+
   private _node: string;
   private _key: ArrayBuffer;
+
   private _clientId: string;
   private _clientMeta: IClientMeta | null;
-  private _peerId: string | null;
+  private _peerId: string;
   private _peerMeta: IClientMeta | null;
-  private _handshakeTopic: string | null;
-  private _accounts: string[] | null;
-  private _chainId: number | null;
+  private _handshakeId: number;
+  private _handshakeTopic: string;
+  private _accounts: string[];
+  private _chainId: number;
   private _socket: WebSocket | null;
   private _queue: ISocketMessage[];
   private _eventEmitters: IEventEmitter[];
@@ -50,32 +62,43 @@ class WalletConnect {
     this.protocol = "wc";
     this.version = 1;
 
+    this._clientId = "";
     this._clientMeta = null;
-    this._peerId = null;
+    this._peerId = "";
     this._peerMeta = null;
-    this._handshakeTopic = null;
-    this._accounts = null;
-    this._chainId = null;
+    this._handshakeId = 0;
+    this._handshakeTopic = "";
+    this._accounts = [];
+    this._chainId = 0;
     this._socket = null;
     this._queue = [];
     this._eventEmitters = [];
     this._connected = false;
 
-    if (!opts.node && !opts.uri) {
-      throw new Error("Missing one of two required parameters: node | uri");
+    if (!opts.node && !opts.uri && !opts.session) {
+      throw new Error(
+        "Missing one of two required parameters: node / uri / session"
+      );
     }
+
     if (opts.node) {
       this.node = opts.node;
     }
+
     if (opts.uri) {
       this.uri = opts.uri;
       this._setToQueue({
         topic: "",
-        payload: JSON.stringify([this._handshakeTopic])
+        payload: JSON.stringify([this.handshakeTopic])
       });
     }
 
-    this._registerInternalEvents();
+    if (opts.session) {
+      this.session = opts.session;
+      this._socketOpen();
+    }
+
+    this._subscribeToInternalEvents();
   }
 
   set node(value: string) {
@@ -161,6 +184,17 @@ class WalletConnect {
     return this._handshakeTopic;
   }
 
+  set handshakeId(value) {
+    if (!value) {
+      return;
+    }
+    this._handshakeId = value;
+  }
+
+  get handshakeId() {
+    return this._handshakeId;
+  }
+
   get uri() {
     const _uri = this._formatUri();
     return _uri;
@@ -171,7 +205,7 @@ class WalletConnect {
       return;
     }
     const { handshakeTopic, node, key } = this._parseUri(value);
-    this._handshakeTopic = handshakeTopic;
+    this.handshakeTopic = handshakeTopic;
     this.node = node;
     this.key = key;
   }
@@ -203,22 +237,33 @@ class WalletConnect {
   }
 
   get session() {
-    const session: IWalletConnectSession = {
-      accounts: this.accounts || [],
-      chainId: this.chainId || null,
+    return {
+      connected: this.connected,
+      accounts: this.accounts,
+      chainId: this.chainId,
       node: this.node,
       key: this.key,
       clientId: this.clientId,
       clientMeta: this.clientMeta,
-      peerId: this.peerId || null,
-      peerMeta: this.peerMeta || null,
-      handshakeTopic: this._handshakeTopic || null
+      peerId: this.peerId,
+      peerMeta: this.peerMeta,
+      handshakeId: this.handshakeId,
+      handshakeTopic: this.handshakeTopic
     };
-    return session;
   }
 
   set session(value) {
-    return;
+    this._connected = value.connected;
+    this.accounts = value.accounts;
+    this.chainId = value.chainId;
+    this.node = value.node;
+    this.key = value.key;
+    this.clientId = value.clientId;
+    this.clientMeta = value.clientMeta;
+    this.peerId = value.peerId;
+    this.peerMeta = value.peerMeta;
+    this.handshakeId = value.handshakeId;
+    this.handshakeTopic = value.handshakeTopic;
   }
 
   public async init() {
@@ -226,7 +271,7 @@ class WalletConnect {
     if (session) {
       this._reconnectSession(session);
     } else {
-      if (!this._handshakeTopic) {
+      if (!this.handshakeTopic) {
         session = await this._createSession();
       }
     }
@@ -235,134 +280,426 @@ class WalletConnect {
   }
 
   public on(
-    method: string,
-    callback: (error: Error | null, request: any | null) => void
+    event: string,
+    callback: (error: Error | null, payload: any | null) => void
   ): void {
     const eventEmitter = {
-      method,
+      event,
       callback
     };
     this._eventEmitters.push(eventEmitter);
   }
 
-  public toJSON(): IWalletConnectJSON {
-    const json: IWalletConnectJSON = {
-      node: this.node,
-      peerMeta: this.peerMeta || null,
-      chainId: this.chainId || null,
-      accounts: this.accounts || [],
-      uri: this.uri
+  public approveSession(sessionStatus: ISessionStatus) {
+    if (this._connected) {
+      throw new Error("Session currently connected");
+    }
+
+    this.chainId = sessionStatus.chainId;
+    this.accounts = sessionStatus.accounts;
+
+    const sessionParams: ISessionParams = {
+      approved: true,
+      chainId: this.chainId,
+      accounts: this.accounts,
+      peerId: this.clientId,
+      peerMeta: this.clientMeta,
+      message: null
     };
-    return json;
+
+    const response = {
+      id: this.handshakeId,
+      jsonrpc: "2.0",
+      result: sessionParams
+    };
+
+    this._sendResponse(response);
+
+    this._connected = true;
+    this._triggerEvents({
+      event: "connect",
+      params: [
+        {
+          peerId: this.peerId,
+          peerMeta: this.peerMeta,
+          chainId: this.chainId,
+          accounts: this.accounts
+        }
+      ]
+    });
+    this._setLocal();
+  }
+
+  public rejectSession(sessionError?: ISessionError) {
+    if (this._connected) {
+      throw new Error("Session currently connected");
+    }
+
+    const message = sessionError ? sessionError.message : null;
+
+    const sessionParams: ISessionParams = {
+      approved: false,
+      chainId: null,
+      accounts: null,
+      peerId: null,
+      peerMeta: null,
+      message
+    };
+
+    const response = {
+      id: this.handshakeId,
+      jsonrpc: "2.0",
+      result: sessionParams
+    };
+
+    this._sendResponse(response);
+
+    this._connected = false;
+    this._triggerEvents({
+      event: "disconnect",
+      params: [{ message }]
+    });
+    this._removeLocal();
+  }
+
+  public updateSession(sessionStatus: ISessionStatus) {
+    if (!this._connected) {
+      throw new Error("Session currently disconnected");
+    }
+
+    this.chainId = sessionStatus.chainId;
+    this.accounts = sessionStatus.accounts;
+
+    const sessionParams: ISessionParams = {
+      approved: true,
+      chainId: this.chainId,
+      accounts: this.accounts,
+      message: null
+    };
+
+    const request = this._formatRequest({
+      method: "wc_sessionUpdate",
+      params: [sessionParams]
+    });
+
+    this._sendSessionRequest(request, "Session update rejected");
+
+    this._triggerEvents({
+      event: "session_update",
+      params: [
+        {
+          chainId: this.chainId,
+          accounts: this.accounts
+        }
+      ]
+    });
+    this._setLocal();
+  }
+
+  public killSession(sessionError?: ISessionError) {
+    if (!this._connected) {
+      throw new Error("Session currently disconnected");
+    }
+
+    const message = sessionError ? sessionError.message : null;
+
+    const sessionParams: ISessionParams = {
+      approved: false,
+      chainId: null,
+      accounts: null,
+      message
+    };
+
+    const request = this._formatRequest({
+      method: "wc_sessionUpdate",
+      params: [sessionParams]
+    });
+
+    this._sendSessionRequest(request, "Session kill rejected");
+
+    this._connected = false;
+
+    this._triggerEvents({
+      event: "disconnect",
+      params: [{ message }]
+    });
+
+    this._removeLocal();
+  }
+
+  public async sendTransaction(tx: ITxData) {
+    if (!this._connected) {
+      throw new Error("Session currently disconnected");
+    }
+
+    const request = this._formatRequest({
+      method: "eth_sendTransaction",
+      params: [tx]
+    });
+
+    try {
+      const result = await this._sendCallRequest(request);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  public async signMessage(params: any[]) {
+    if (!this._connected) {
+      throw new Error("Session currently disconnected");
+    }
+
+    const request = this._formatRequest({
+      method: "eth_sign",
+      params
+    });
+
+    try {
+      const result = await this._sendCallRequest(request);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  public async signTypedData(params: any[]) {
+    if (!this._connected) {
+      throw new Error("Session currently disconnected");
+    }
+
+    const request = this._formatRequest({
+      method: "eth_signTypedData",
+      params
+    });
+
+    try {
+      const result = await this._sendCallRequest(request);
+      return result;
+    } catch (error) {
+      throw error;
+    }
   }
 
   // -- Private Methods ----------------------------------------------------- //
 
+  private async _sendRequest(request: IPartialRpcRequest, _topic?: string) {
+    const callRequest: IFullRpcRequest = this._formatRequest(request);
+
+    const encryptionPayload: IEncryptionPayload = await this._encrypt(
+      callRequest
+    );
+
+    const topic: string = _topic ? _topic : this.peerId;
+
+    const payload: string = JSON.stringify(encryptionPayload);
+
+    const socketMessage = {
+      topic,
+      payload
+    };
+
+    if (this._socket) {
+      this._socketSend(socketMessage);
+    } else {
+      this._setToQueue(socketMessage);
+    }
+  }
+
+  private async _sendResponse(response: IRpcResponse, _topic?: string) {
+    const encryptionPayload: IEncryptionPayload = await this._encrypt(response);
+
+    const payload: string = JSON.stringify(encryptionPayload);
+
+    const topic: string = _topic ? _topic : this.peerId;
+
+    const socketMessage = {
+      topic,
+      payload
+    };
+
+    if (this._socket) {
+      this._socketSend(socketMessage);
+    } else {
+      this._setToQueue(socketMessage);
+    }
+  }
+
+  private async _sendSessionRequest(
+    request: IFullRpcRequest,
+    errorMsg: string
+  ) {
+    this._sendRequest(request);
+    this._subscribeToSessionResponse(request.id, errorMsg);
+  }
+
+  private _sendCallRequest(request: IFullRpcRequest): Promise<any> {
+    this._sendRequest(request);
+    return this._subscribeToCallResponse(request.id);
+  }
+
   private _reconnectSession(session: IWalletConnectSession) {
-    this.accounts = session.accounts;
-    this.chainId = session.chainId;
-    this.node = session.node;
-    this.key = session.key;
-    this.clientId = session.clientId;
-    this.clientMeta = session.clientMeta;
-    this.peerId = session.peerId;
-    this.peerMeta = session.peerMeta;
-    this.handshakeTopic = session.handshakeTopic;
+    this.session = session;
+    this._subscribeToSessionResponse(
+      this.handshakeId,
+      "Session request rejected"
+    );
   }
 
   private async _createSession(): Promise<IWalletConnectSession> {
     this._key = this._key || (await generateKey());
 
-    const sessionRequest: IJSONRPCRequest = {
-      id: payloadId(),
-      jsonrpc: "2.0",
-      method: "wc_sessionRequest",
-      params: [this.clientId, this.clientMeta]
-    };
+    const sessionRequest: IFullRpcRequest = this._subscribeToSessionRequest();
 
-    const encryptionPayload = await this._encrypt(sessionRequest);
-    const payload = JSON.stringify(encryptionPayload);
+    this.handshakeTopic = this.handshakeTopic || uuid();
 
-    this._handshakeTopic = this._handshakeTopic || uuid();
-    const socketMessage = {
-      topic: this._handshakeTopic,
-      payload
-    };
+    this._sendRequest(sessionRequest, this.handshakeTopic);
 
-    this._setToQueue(socketMessage);
     const session = this._setLocal();
 
     return session;
   }
 
-  private async _encrypt(data: IJSONRPCRequest): Promise<IEncryptionPayload> {
-    const key: ArrayBuffer = this._key;
-    const result: IEncryptionPayload = await encrypt(data, key);
-    return result;
+  private _formatRequest(request: IPartialRpcRequest): IFullRpcRequest {
+    const sessionRequest: IFullRpcRequest = {
+      id: payloadId(),
+      jsonrpc: "2.0",
+      ...request
+    };
+    return sessionRequest;
   }
 
-  private async _decrypt(
-    payload: IEncryptionPayload
-  ): Promise<IJSONRPCRequest | null> {
-    const key: ArrayBuffer = this._key;
-    const result: IJSONRPCRequest | null = await decrypt(payload, key);
-    return result;
-  }
-
-  private _registerInternalEvents() {
-    this.on("wc_sessionRequest", (error, request) => {
-      if (error) {
-        throw error;
-      }
-      this.peerId = request.params[0];
-      this.peerMeta = request.params[1];
+  private _subscribeToSessionRequest(): IFullRpcRequest {
+    const sessionRequest: IFullRpcRequest = this._formatRequest({
+      method: "wc_sessionRequest",
+      params: [
+        {
+          peerId: this.clientId,
+          peerMeta: this.clientMeta
+        }
+      ]
     });
 
-    this.on("wc_sessionStatus", (error, request) => {
-      if (error) {
-        throw error;
-      }
-      this._connected = request.params[0];
-      this._chainId = request.params[1];
-      this._accounts = request.params[2];
-    });
+    this._handshakeId = sessionRequest.id;
+
+    this._subscribeToSessionResponse(
+      this._handshakeId,
+      "Session request rejected"
+    );
+
+    return sessionRequest;
   }
 
-  private _formatUri() {
-    const protocol = this.protocol;
-    const handshakeTopic = this._handshakeTopic;
-    const version = this.version;
-    const node = encodeURIComponent(this.node);
-    const key = this.key;
-    const uri = `${protocol}:${handshakeTopic}@${version}?node=${node}&key=${key}`;
-    console.log("uri", uri); // tslint:disable-line
-    return uri;
-  }
+  private _handleSessionResponse(
+    sessionParams: ISessionParams,
+    errorMsg: string
+  ) {
+    if (sessionParams.approved) {
+      if (!this._connected) {
+        this._connected = true;
+        if (sessionParams.peerId) {
+          this.peerId = sessionParams.peerId;
+        }
+        if (sessionParams.peerMeta) {
+          this.peerMeta = sessionParams.peerMeta;
+        }
+        if (sessionParams.chainId) {
+          this.chainId = sessionParams.chainId;
+        }
+        if (sessionParams.accounts) {
+          this.accounts = sessionParams.accounts;
+        }
 
-  private _parseUri(uri: string) {
-    const result: IParseURIResult = parseWalletConnectUri(uri);
-    console.log("_parseUri result", result); // tslint:disable-line
+        this._triggerEvents({
+          event: "connect",
+          params: [
+            {
+              peerId: this.peerId,
+              peerMeta: this.peerMeta,
+              chainId: this.chainId,
+              accounts: this.accounts
+            }
+          ]
+        });
+      } else {
+        if (sessionParams.chainId) {
+          this.chainId = sessionParams.chainId;
+        }
+        if (sessionParams.accounts) {
+          this.accounts = sessionParams.accounts;
+        }
 
-    if (result.protocol === this.protocol) {
-      if (!result.handshakeTopic) {
-        throw Error("Invalid or missing handshakeTopic parameter value");
+        this._triggerEvents({
+          event: "session_update",
+          params: [
+            {
+              chainId: this.chainId,
+              accounts: this.accounts
+            }
+          ]
+        });
       }
-      const handshakeTopic = result.handshakeTopic;
-
-      if (!result.node) {
-        throw Error("Invalid or missing node url parameter value");
-      }
-      const node = decodeURIComponent(result.node);
-
-      if (!result.key) {
-        throw Error("Invalid or missing kkey parameter value");
-      }
-      const key = result.key;
-
-      return { handshakeTopic, node, key };
+      this._setLocal();
     } else {
-      throw new Error("URI format doesn't follow WalletConnect protocol");
+      if (this._connected) {
+        this._connected = false;
+        const message = sessionParams.message || errorMsg;
+        this._triggerEvents({
+          event: "disconnect",
+          params: [{ message }]
+        });
+        console.error(message); // tslint:disable-line
+      }
+      this._removeLocal();
     }
+  }
+
+  private _subscribeToSessionResponse(id: number, errorMsg: string) {
+    this.on(`response:${id}`, (error: Error, payload: IRpcResponse) => {
+      if (error) {
+        console.error(errorMsg); // tslint:disable-line
+      }
+
+      this._handleSessionResponse(payload.result, errorMsg);
+    });
+  }
+
+  private _subscribeToCallResponse(id: number): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.on(`response:${id}`, (error: Error, payload: IRpcResponse) => {
+        if (error) {
+          reject(error);
+        }
+        if (payload.result) {
+          resolve(payload.result);
+        } else {
+          reject(new Error("Invalid JSON RPC response format received"));
+        }
+      });
+    });
+  }
+
+  private _subscribeToInternalEvents() {
+    this.on("wc_sessionRequest", (error, payload) => {
+      if (error) {
+        console.error(error); // tslint:disable-line
+      }
+      this._handshakeId = payload.id;
+      this.peerId = payload.params[0].peerId;
+      this.peerMeta = payload.params[0].peerMeta;
+
+      this._triggerEvents({
+        event: "session_request",
+        params: [{ peerId: this.peerId, peerMeta: this.peerMeta }]
+      });
+    });
+
+    this.on("wc_sessionUpdate", (error, payload) => {
+      if (error) {
+        console.error(error); // tslint:disable-line
+      }
+      this._handleSessionResponse(payload.params[0], "Session disconnected");
+    });
   }
 
   private _setToQueue(socketMessage: ISocketMessage) {
@@ -419,7 +756,6 @@ class WalletConnect {
     let socketMessage: ISocketMessage;
     try {
       socketMessage = JSON.parse(event.data);
-      console.log("_socketReceive socketMessage", socketMessage); // tslint:disable-line
     } catch (error) {
       throw new Error(`Failed to parse invalid JSON`);
     }
@@ -431,27 +767,101 @@ class WalletConnect {
       throw new Error(`Failed to parse invalid JSON`);
     }
 
-    const request: IJSONRPCRequest | null = await this._decrypt(
+    const payload: IFullRpcRequest | IRpcResponse | null = await this._decrypt(
       encryptionPayload
     );
-    console.log("_socketReceive request", request); // tslint:disable-line
+    console.log("_socketReceive payload", payload); // tslint:disable-line
 
-    if (request) {
-      const method: string = request.method;
+    if (payload) {
+      this._triggerEvents(payload);
+    }
+  }
 
-      console.log("_socketReceive request.method", request.method); // tslint:disable-line
+  private _triggerEvents(
+    payload: IFullRpcRequest | IRpcResponse | IInternalEvent
+  ): void {
+    let eventEmitters: IEventEmitter[] = [];
+    let event: string;
 
-      const eventEmitters = this._eventEmitters.filter(
-        (eventEmitter: IEventEmitter) => eventEmitter.method === method
+    if (isRpcRequest(payload)) {
+      event = payload.method;
+    } else if (isRpcResponse(payload)) {
+      event = `response:${payload.id}`;
+    } else if (isInternalEvent) {
+      event = payload.event;
+    } else {
+      event = "";
+    }
+
+    if (event) {
+      eventEmitters = this._eventEmitters.filter(
+        (eventEmitter: IEventEmitter) => eventEmitter.event === event
       );
+    }
 
-      console.log("_socketReceive eventEmitters", eventEmitters); // tslint:disable-line
+    if (!eventEmitters || !eventEmitters.length) {
+      eventEmitters = this._eventEmitters.filter(
+        (eventEmitter: IEventEmitter) => eventEmitter.event === "request"
+      );
+    }
+    eventEmitters.forEach((eventEmitter: IEventEmitter) =>
+      eventEmitter.callback(null, payload)
+    );
+  }
 
-      if (eventEmitters && eventEmitters.length) {
-        eventEmitters.forEach((eventEmitter: IEventEmitter) =>
-          eventEmitter.callback(null, request)
-        );
+  private async _encrypt(
+    data: IFullRpcRequest | IRpcResponse
+  ): Promise<IEncryptionPayload> {
+    const key: ArrayBuffer = this._key;
+    const result: IEncryptionPayload = await encrypt(data, key);
+    return result;
+  }
+
+  private async _decrypt(
+    payload: IEncryptionPayload
+  ): Promise<IFullRpcRequest | IRpcResponse | null> {
+    const key: ArrayBuffer = this._key;
+    const result: IFullRpcRequest | IRpcResponse | null = await decrypt(
+      payload,
+      key
+    );
+    return result;
+  }
+
+  private _formatUri() {
+    const protocol = this.protocol;
+    const handshakeTopic = this.handshakeTopic;
+    const version = this.version;
+    const node = encodeURIComponent(this.node);
+    const key = this.key;
+    const uri = `${protocol}:${handshakeTopic}@${version}?node=${node}&key=${key}`;
+    console.log("uri", uri); // tslint:disable-line
+    return uri;
+  }
+
+  private _parseUri(uri: string) {
+    const result: IParseURIResult = parseWalletConnectUri(uri);
+    console.log("_parseUri result", result); // tslint:disable-line
+
+    if (result.protocol === this.protocol) {
+      if (!result.handshakeTopic) {
+        throw Error("Invalid or missing handshakeTopic parameter value");
       }
+      const handshakeTopic = result.handshakeTopic;
+
+      if (!result.node) {
+        throw Error("Invalid or missing node url parameter value");
+      }
+      const node = decodeURIComponent(result.node);
+
+      if (!result.key) {
+        throw Error("Invalid or missing kkey parameter value");
+      }
+      const key = result.key;
+
+      return { handshakeTopic, node, key };
+    } else {
+      throw new Error("URI format doesn't follow WalletConnect protocol");
     }
   }
 
@@ -475,6 +885,12 @@ class WalletConnect {
       localStorage.setItem(localStorageId, local);
     }
     return session;
+  }
+
+  private _removeLocal(): void {
+    if (localStorage) {
+      localStorage.removeItem(localStorageId);
+    }
   }
 }
 

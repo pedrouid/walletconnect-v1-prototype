@@ -9,7 +9,44 @@ export interface ISocketMessage {
   payload: string;
 }
 
-export interface IJSONRPCRequest {
+export interface ISessionStatus {
+  chainId: number;
+  accounts: string[];
+}
+
+export interface ISessionError {
+  message?: string;
+}
+
+export interface IInternalEvent {
+  event: string;
+  params: any;
+}
+
+export interface ITxData {
+  from: string;
+  to: string;
+  nonce: string;
+  gasPrice: string;
+  gasLimit: string;
+  value: string;
+  data: string;
+}
+
+export interface IRpcResponse {
+  id: number;
+  jsonrpc: string;
+  result: any;
+}
+
+export interface IPartialRpcRequest {
+  id?: number;
+  jsonrpc?: string;
+  method: string;
+  params: any[];
+}
+
+export interface IFullRpcRequest {
   id: number;
   jsonrpc: string;
   method: string;
@@ -25,7 +62,7 @@ export interface IClientMeta {
 }
 
 export interface IEventEmitter {
-  method: string;
+  event: string;
   callback: (error: Error | null, request: any | null) => void;
 }
 
@@ -47,27 +84,31 @@ export interface IParseURIResult {
   key: string;
 }
 
-export interface IWalletConnectOptions {
-  node?: string;
-  uri?: string;
+export interface ISessionParams {
+  approved: boolean;
+  chainId: number | null;
+  accounts: string[] | null;
+  peerId?: string | null;
+  peerMeta?: IClientMeta | null;
+  message?: string | null;
 }
 
 export interface IWalletConnectSession {
+  connected: boolean;
   accounts: string[];
-  chainId: number | null;
+  chainId: number;
   node: string;
   key: string;
   clientId: string;
   clientMeta: IClientMeta;
-  peerId: string | null;
+  peerId: string;
   peerMeta: IClientMeta | null;
-  handshakeTopic: string | null;
+  handshakeId: number;
+  handshakeTopic: string;
 }
 
-export interface IWalletConnectJSON {
-  accounts: string[];
-  chainId: number | null;
-  node: string;
-  peerMeta: IClientMeta | null;
-  uri: string;
+export interface IWalletConnectOptions {
+  node?: string;
+  uri?: string;
+  session?: IWalletConnectSession;
 }
