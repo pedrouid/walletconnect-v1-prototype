@@ -770,7 +770,6 @@ class WalletConnect {
     const payload: IFullRpcRequest | IRpcResponse | null = await this._decrypt(
       encryptionPayload
     );
-    console.log("_socketReceive payload", payload); // tslint:disable-line
 
     if (payload) {
       this._triggerEvents(payload);
@@ -835,13 +834,11 @@ class WalletConnect {
     const node = encodeURIComponent(this.node);
     const key = this.key;
     const uri = `${protocol}:${handshakeTopic}@${version}?node=${node}&key=${key}`;
-    console.log("uri", uri); // tslint:disable-line
     return uri;
   }
 
   private _parseUri(uri: string) {
     const result: IParseURIResult = parseWalletConnectUri(uri);
-    console.log("_parseUri result", result); // tslint:disable-line
 
     if (result.protocol === this.protocol) {
       if (!result.handshakeTopic) {

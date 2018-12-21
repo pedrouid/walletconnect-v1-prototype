@@ -187,7 +187,12 @@ class App extends React.Component<{}> {
       }
 
       const walletConnector = new WalletConnect({ session });
-      this.setState({ walletConnector });
+
+      const { connected, chainId } = walletConnector;
+
+      const chainData = getChainData(chainId);
+
+      this.setState({ connected, walletConnector, chainId, chainData });
     }
   };
 

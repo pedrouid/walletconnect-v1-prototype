@@ -6,7 +6,6 @@ import WebSocket from 'ws'
 const server = fastify({ logger: process.env.NODE_ENV !== 'production' })
 
 const staticRoot = path.join(__dirname, '../../client/build')
-console.log('staticRoot', staticRoot)
 
 server.register(fastifyStatic, {
   root: staticRoot
@@ -81,7 +80,7 @@ server.ready(() => {
       let socketMessage: ISocketMessage
 
       if (message) {
-        console.log('message =>', message)
+        console.log('message', message)
 
         try {
           socketMessage = JSON.parse(message)
