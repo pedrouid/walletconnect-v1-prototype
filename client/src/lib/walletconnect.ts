@@ -267,16 +267,15 @@ class WalletConnect {
   }
 
   public async init() {
-    let session: IWalletConnectSession | null = this._getLocal();
+    const session: IWalletConnectSession | null = this._getLocal();
     if (session) {
       this._reconnectSession(session);
     } else {
       if (!this.handshakeTopic) {
-        session = await this._createSession();
+        await this._createSession();
       }
     }
     this._socketOpen();
-    return session;
   }
 
   public on(
@@ -546,7 +545,7 @@ class WalletConnect {
     );
   }
 
-  private async _createSession(): Promise<IWalletConnectSession> {
+  private async _createSession(): Promise<void> {
     this._key = this._key || (await generateKey());
 
     const sessionRequest: IFullRpcRequest = this._subscribeToSessionRequest();
@@ -555,9 +554,7 @@ class WalletConnect {
 
     this._sendRequest(sessionRequest, this.handshakeTopic);
 
-    const session = this._setLocal();
-
-    return session;
+    this._setLocal();
   }
 
   private _formatRequest(request: IPartialRpcRequest): IFullRpcRequest {
