@@ -14,8 +14,8 @@
     "type": "git",
     "url": "git+https://gitlab.com/pedrouid/nodejs-walletconnect-example.git"
   },
-  "author": "Pedro Gomes <pedro@pedrouid.com>",
-  "license": "MIT",
+  "author": "WalletConnect <walletconnect.org>",
+  "license": "LGPL-3.0",
   "bugs": {
     "url": "https://gitlab.com/pedrouid/nodejs-walletconnect-example/issues"
   },
