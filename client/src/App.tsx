@@ -504,15 +504,17 @@ class App extends React.Component<{}> {
                       <div>{peerMeta.name}</div>
                     </>
                   )}
-                  {!!requests.length && (
-                    <>
-                      <h6>{"Pending Call Requests"}</h6>
-                      {requests.map(request => (
-                        <div key={request.id}>
-                          <div>{request.method}</div>
-                        </div>
-                      ))}
-                    </>
+                  <h6>{"Pending Call Requests"}</h6>
+                  {!!requests.length ? (
+                    requests.map(request => (
+                      <div key={request.id}>
+                        <div>{request.method}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div>
+                      <div>{"No pending requests"}</div>
+                    </div>
                   )}
                 </SColumn>
               )}
