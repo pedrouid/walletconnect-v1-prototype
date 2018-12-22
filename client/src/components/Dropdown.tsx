@@ -1,6 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
 import { colors, shadows, transitions } from "../styles";
+import ClickOutside from "./ClickOutside";
 
 interface IDropdownStyle {
   show?: boolean;
@@ -123,6 +124,12 @@ class Dropdown extends React.Component<IDropdownProps, IDropdownState> {
     this.setState({ show: !this.state.show });
   };
 
+  public onClickOutside = () => {
+    if (this.state.show) {
+      this.toggleDropdown();
+    }
+  };
+
   public onChange = async (selected: string) => {
     this.toggleDropdown();
     if (this.props.onChange) {
@@ -134,24 +141,26 @@ class Dropdown extends React.Component<IDropdownProps, IDropdownState> {
     const { displayKey, selected, disabled } = this.props;
     const { show, otherKeys, optionsDict } = this.state;
     return !!Object.keys(optionsDict).length ? (
-      <SDropdown disabled={disabled}>
-        <SRow selected={true} show={show} onClick={this.toggleDropdown}>
-          {optionsDict[selected][displayKey]}
-        </SRow>
-        <SAbsolute show={show}>
-          {!!otherKeys.length &&
-            otherKeys.map((otherKey, idx) => (
-              <SRow
-                show={show}
-                // tslint:disable-next-line jsx-no-lambda
-                onClick={() => this.onChange(otherKey)}
-                key={`${otherKey}-${idx}`}
-              >
-                {optionsDict[otherKey][displayKey]}
-              </SRow>
-            ))}
-        </SAbsolute>
-      </SDropdown>
+      <ClickOutside onClickOutside={this.onClickOutside}>
+        <SDropdown disabled={disabled}>
+          <SRow selected={true} show={show} onClick={this.toggleDropdown}>
+            {optionsDict[selected][displayKey]}
+          </SRow>
+          <SAbsolute show={show}>
+            {!!otherKeys.length &&
+              otherKeys.map((otherKey, idx) => (
+                <SRow
+                  show={show}
+                  // tslint:disable-next-line jsx-no-lambda
+                  onClick={() => this.onChange(otherKey)}
+                  key={`${otherKey}-${idx}`}
+                >
+                  {optionsDict[otherKey][displayKey]}
+                </SRow>
+              ))}
+          </SAbsolute>
+        </SDropdown>
+      </ClickOutside>
     ) : null;
   }
 }
