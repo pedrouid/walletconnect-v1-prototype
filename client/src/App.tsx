@@ -354,17 +354,23 @@ class App extends React.Component<{}> {
 
     if (walletConnector) {
       walletConnector.on("session_request", (error, payload) => {
+        console.log('walletConnector.on("session_request")'); // tslint:disable-line
+
         if (error) {
           throw error;
         }
+
         const { peerMeta } = payload.params[0];
         this.setState({ peerMeta });
       });
 
       walletConnector.on("session_update", (error, payload) => {
+        console.log('walletConnector.on("session_update")'); // tslint:disable-line
+
         if (error) {
           throw error;
         }
+
         const { chainId, accounts } = payload.params[0];
         const address = accounts[0];
         const chainData = getChainData(chainId);
@@ -372,17 +378,23 @@ class App extends React.Component<{}> {
       });
 
       walletConnector.on("call_request", (error, payload) => {
+        console.log('walletConnector.on("call_request")'); // tslint:disable-line
+
         if (error) {
           throw error;
         }
+
         const requests = [...this.state.requests, payload];
         this.setState({ requests });
       });
 
       walletConnector.on("connect", (error, payload) => {
+        console.log('walletConnector.on("connect")'); // tslint:disable-line
+
         if (error) {
           throw error;
         }
+
         const { chainId, accounts } = payload.params[0];
         const address = accounts[0];
         const chainData = getChainData(chainId);
@@ -396,9 +408,12 @@ class App extends React.Component<{}> {
       });
 
       walletConnector.on("disconnect", (error, payload) => {
+        console.log('walletConnector.on("disconnect")'); // tslint:disable-line
+
         if (error) {
           throw error;
         }
+
         this.resetApp();
       });
 

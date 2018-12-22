@@ -653,15 +653,13 @@ class WalletConnect {
       }
       this._setLocal();
     } else {
-      if (this._connected) {
-        this._connected = false;
-        const message = sessionParams.message || errorMsg;
-        this._triggerEvents({
-          event: "disconnect",
-          params: [{ message }]
-        });
-        console.error(message); // tslint:disable-line
-      }
+      this._connected = false;
+      const message = sessionParams.message || errorMsg;
+      this._triggerEvents({
+        event: "disconnect",
+        params: [{ message }]
+      });
+      console.error(message); // tslint:disable-line
       this._removeLocal();
     }
   }

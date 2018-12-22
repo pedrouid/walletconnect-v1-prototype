@@ -30,6 +30,14 @@ interface ISocketSub {
 const subs: ISocketSub[] = []
 const pubs: ISocketMessage[] = []
 
+const setSub = (subscriber: ISocketSub) => subs.push(subscriber)
+const getSub = (topic: string) =>
+  subs.filter(subscriber => subscriber.topic === topic)
+
+const setPub = (socketMessage: ISocketMessage) => pubs.push(socketMessage)
+const getPub = (topic: string) =>
+  pubs.filter(pending => pending.topic === topic)
+
 function socketSend (socket: WebSocket, socketMessage: ISocketMessage) {
   if (socket.readyState === 1) {
     console.log('OUT =>', socketMessage)
@@ -40,16 +48,11 @@ function socketSend (socket: WebSocket, socketMessage: ISocketMessage) {
 const SubController = (socket: WebSocket, socketMessage: ISocketMessage) => {
   const topic = socketMessage.topic
 
-  const subscriber = {
-    socket,
-    topic
-  }
+  const subscriber = { topic, socket }
 
-  subs.push(subscriber)
+  setSub(subscriber)
 
-  const pending = pubs.filter(
-    (pendingMessage: ISocketMessage) => pendingMessage.topic === topic
-  )
+  const pending = getPub(topic)
 
   if (pending && pending.length) {
     pending.forEach((pendingMessage: ISocketMessage) =>
@@ -59,18 +62,14 @@ const SubController = (socket: WebSocket, socketMessage: ISocketMessage) => {
 }
 
 const PubController = (socketMessage: ISocketMessage) => {
-  const subscribers: ISocketSub[] = subs.filter((subscriber: ISocketSub) => {
-    if (subscriber.topic === socketMessage.topic) {
-      return subscriber
-    }
-  })
+  const subscribers = getSub(socketMessage.topic)
 
   if (subscribers.length) {
     subscribers.forEach((subscriber: ISocketSub) =>
       socketSend(subscriber.socket, socketMessage)
     )
   } else {
-    pubs.push(socketMessage)
+    setPub(socketMessage)
   }
 }
 
@@ -79,17 +78,17 @@ server.ready(() => {
     socket.on('message', async data => {
       const message: string = String(data)
 
-      let socketMessage: ISocketMessage
-
       if (message) {
-        console.log('IN  =>', message)
+        let socketMessage: ISocketMessage
 
         try {
           socketMessage = JSON.parse(message)
 
-          if (!socketMessage.payload.trim()) {
+          console.log('IN  =>', socketMessage)
+
+          if (socketMessage.type === 'sub') {
             SubController(socket, socketMessage)
-          } else {
+          } else if (socketMessage.type === 'pub') {
             PubController(socketMessage)
           }
         } catch (e) {
