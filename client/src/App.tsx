@@ -7,6 +7,7 @@ import Button from "./components/Button";
 import Card from "./components/Card";
 import Header from "./components/Header";
 import PeerMeta from "./components/PeerMeta";
+import Dropdown from "./components/Dropdown";
 import AccountDetails from "./components/AccountDetails";
 import QRCodeDisplay from "./components/QRCodeDisplay";
 import QRCodeScanner, {
@@ -20,7 +21,7 @@ import {
   convertAmountToRawNumber,
   convertStringToHex
 } from "./helpers/bignumber";
-// import { fonts } from "./styles";
+import chains from "./helpers/chains";
 
 const SContainer = styled.div`
   display: flex;
@@ -434,6 +435,35 @@ class App extends React.Component<{}> {
     }
   };
 
+  public updateSession = async (sessionParams: {
+    chainId?: number;
+    accounts?: string[];
+  }) => {
+    const { walletConnector, chainId, accounts } = this.state;
+    const _chainId = sessionParams.chainId || chainId;
+    const _accounts = sessionParams.accounts || accounts;
+    if (walletConnector) {
+      walletConnector.updateSession({
+        chainId: _chainId,
+        accounts: _accounts
+      });
+    }
+
+    await this.setState({
+      walletConnector,
+      chainId: _chainId,
+      accounts: _accounts
+    });
+  };
+
+  public updateChain = async (chainId: number | string) => {
+    const { mobile } = this.state;
+    const _chainId = Number(chainId);
+    if (mobile) {
+      this.updateSession({ chainId: _chainId });
+    }
+  };
+
   public toggleScanner = () => {
     this.setState({ scanner: !this.state.scanner });
   };
@@ -478,7 +508,6 @@ class App extends React.Component<{}> {
       accounts,
       address,
       chainId,
-      chainData,
       requests
     } = this.state;
     return (
@@ -504,7 +533,19 @@ class App extends React.Component<{}> {
                   </SColumn>
                 ) : (
                   <SColumn>
-                    <AccountDetails accounts={accounts} chainData={chainData} />
+                    <AccountDetails accounts={accounts} />
+                    <div>
+                      <h6>{"Network"}</h6>
+                      <Dropdown
+                        disabled={!mobile}
+                        selected={chainId}
+                        options={chains}
+                        displayKey={"name"}
+                        targetKey={"chain_id"}
+                        onChange={this.updateChain}
+                      />
+                    </div>
+
                     <SActions>
                       <Button onClick={this.toggleScanner}>{`Scan`}</Button>
                     </SActions>
@@ -512,7 +553,19 @@ class App extends React.Component<{}> {
                 )
               ) : (
                 <SColumn>
-                  <AccountDetails accounts={accounts} chainData={chainData} />
+                  <AccountDetails accounts={accounts} />
+                  <div>
+                    <h6>{"Network"}</h6>
+                    <Dropdown
+                      disabled={!mobile}
+                      selected={chainId}
+                      options={chains}
+                      displayKey={"name"}
+                      targetKey={"chain_id"}
+                      onChange={this.updateChain}
+                    />
+                  </div>
+
                   {peerMeta.name && (
                     <>
                       <h6>{"Connected to"}</h6>
@@ -541,10 +594,19 @@ class App extends React.Component<{}> {
                 uri ? (
                   connected ? (
                     <SColumn>
-                      <AccountDetails
-                        accounts={accounts}
-                        chainData={chainData}
-                      />
+                      <AccountDetails accounts={accounts} />
+                      <div>
+                        <h6>{"Network"}</h6>
+                        <Dropdown
+                          disabled={!mobile}
+                          selected={chainId}
+                          options={chains}
+                          displayKey={"name"}
+                          targetKey={"chain_id"}
+                          onChange={this.updateChain}
+                        />
+                      </div>
+
                       <SActions>
                         <Button
                           onClick={this.sendTransaction}

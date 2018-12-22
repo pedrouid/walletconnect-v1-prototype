@@ -463,24 +463,6 @@ class WalletConnect {
     this._removeLocal();
   }
 
-  public async requestChainId(chainId: number) {
-    if (!this._connected) {
-      throw new Error("Session currently disconnected");
-    }
-
-    const request = this._formatRequest({
-      method: "wc_requestChainId",
-      params: [chainId]
-    });
-
-    try {
-      const result = await this._sendCallRequest(request);
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  }
-
   public async sendTransaction(tx: ITxData) {
     if (!this._connected) {
       throw new Error("Session currently disconnected");

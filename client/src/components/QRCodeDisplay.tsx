@@ -14,22 +14,22 @@ const SQRCodeDisplay = styled.div`
 `;
 
 interface IQRCodeDisplayState {
-  img: string;
+  img: string | Buffer;
+  data: string;
 }
 
 interface IQRCodeDisplayProps {
   data: string;
 }
 
-class QRCodeDisplay extends React.Component<IQRCodeDisplayProps> {
-  public state: IQRCodeDisplayState;
-
-  constructor(props: IQRCodeDisplayProps) {
-    super(props);
-    this.state = {
-      img: ""
-    };
-  }
+class QRCodeDisplay extends React.Component<
+  IQRCodeDisplayProps,
+  IQRCodeDisplayState
+> {
+  public state = {
+    img: "",
+    data: ""
+  };
 
   public componentDidMount() {
     this.updateQRCodeImage();

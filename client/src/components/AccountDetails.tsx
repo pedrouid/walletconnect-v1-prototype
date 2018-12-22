@@ -1,7 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
 
-import { IChainData } from "../helpers/types";
 import Blockie from "./Blockie";
 
 const SAccount = styled.div`
@@ -17,28 +16,17 @@ const SAddress = styled.p`
 
 interface IAccountDetailsProps {
   accounts: string[];
-  chainData: IChainData;
 }
 
-const AccountDetails = (props: IAccountDetailsProps) => {
-  const { chainData, accounts } = props;
-
-  return (
-    <>
-      <div>
-        <h6>{"Accounts"}</h6>
-        {accounts.map((address: string) => (
-          <SAccount key={address}>
-            <Blockie size={20} address={address} />
-            <SAddress>{address}</SAddress>
-          </SAccount>
-        ))}
-      </div>
-      <div>
-        <h6>{"Network"}</h6>
-        <p>{chainData.name}</p>
-      </div>
-    </>
-  );
-};
+const AccountDetails = (props: IAccountDetailsProps) => (
+  <div>
+    <h6>{"Accounts"}</h6>
+    {props.accounts.map((address: string) => (
+      <SAccount key={address}>
+        <Blockie size={20} address={address} />
+        <SAddress>{address}</SAddress>
+      </SAccount>
+    ))}
+  </div>
+);
 export default AccountDetails;
