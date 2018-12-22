@@ -18,11 +18,12 @@ const wsServer = new WebSocket.Server({ server: server.server })
 
 interface ISocketMessage {
   topic: string
+  type: string
   payload: string
 }
 
 interface ISocketSub {
-  topics: string[]
+  topic: string
   socket: WebSocket
 }
 
@@ -37,17 +38,17 @@ function socketSend (socket: WebSocket, socketMessage: ISocketMessage) {
 }
 
 const SubController = (socket: WebSocket, socketMessage: ISocketMessage) => {
-  const topics = JSON.parse(socketMessage.payload)
+  const topic = socketMessage.topic
 
   const subscriber = {
     socket,
-    topics
+    topic
   }
 
   subs.push(subscriber)
 
-  const pending = pubs.filter((pendingMessage: ISocketMessage) =>
-    topics.includes(pendingMessage.topic)
+  const pending = pubs.filter(
+    (pendingMessage: ISocketMessage) => pendingMessage.topic === topic
   )
 
   if (pending && pending.length) {
@@ -59,7 +60,7 @@ const SubController = (socket: WebSocket, socketMessage: ISocketMessage) => {
 
 const PubController = (socketMessage: ISocketMessage) => {
   const subscribers: ISocketSub[] = subs.filter((subscriber: ISocketSub) => {
-    if (subscriber.topics.includes(socketMessage.topic)) {
+    if (subscriber.topic === socketMessage.topic) {
       return subscriber
     }
   })
@@ -86,7 +87,7 @@ server.ready(() => {
         try {
           socketMessage = JSON.parse(message)
 
-          if (!socketMessage.topic.trim()) {
+          if (!socketMessage.payload.trim()) {
             SubController(socket, socketMessage)
           } else {
             PubController(socketMessage)

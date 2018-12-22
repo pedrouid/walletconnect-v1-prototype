@@ -287,8 +287,6 @@ class WalletConnect {
     event: string,
     callback: (error: Error | null, payload: any | null) => void
   ): void {
-    console.log("register on", event); // tslint:disable-line
-
     const eventEmitter = {
       event,
       callback
@@ -301,7 +299,11 @@ class WalletConnect {
       throw new Error("Session currently connected");
     }
 
-    this._key = this._key || (await generateKey());
+    if (this.pending) {
+      return;
+    }
+
+    this._key = await generateKey();
 
     const request: IFullRpcRequest = this._formatRequest({
       method: "wc_sessionRequest",
@@ -313,8 +315,8 @@ class WalletConnect {
       ]
     });
 
-    this._handshakeId = request.id;
-    this.handshakeTopic = this.handshakeTopic || uuid();
+    this.handshakeId = request.id;
+    this.handshakeTopic = uuid();
 
     this._sendSessionRequest(
       request,
@@ -543,11 +545,11 @@ class WalletConnect {
     );
 
     const topic: string = _topic ? _topic : this.peerId;
-
     const payload: string = JSON.stringify(encryptionPayload);
 
-    const socketMessage = {
+    const socketMessage: ISocketMessage = {
       topic,
+      type: "pub",
       payload
     };
 
@@ -561,12 +563,12 @@ class WalletConnect {
   private async _sendResponse(response: IRpcResponse) {
     const encryptionPayload: IEncryptionPayload = await this._encrypt(response);
 
+    const topic: string = this.peerId;
     const payload: string = JSON.stringify(encryptionPayload);
 
-    const topic: string = this.peerId;
-
-    const socketMessage = {
+    const socketMessage: ISocketMessage = {
       topic,
+      type: "pub",
       payload
     };
 
@@ -666,8 +668,9 @@ class WalletConnect {
 
   private _subscribeToSessionRequest() {
     this._setToQueue({
-      topic: "",
-      payload: JSON.stringify([this.handshakeTopic])
+      topic: `${this.handshakeTopic}`,
+      type: "sub",
+      payload: ""
     });
   }
 
@@ -701,7 +704,7 @@ class WalletConnect {
       if (error) {
         console.error(error); // tslint:disable-line
       }
-      this._handshakeId = payload.id;
+      this.handshakeId = payload.id;
       this.peerId = payload.params[0].peerId;
       this.peerMeta = payload.params[0].peerMeta;
 
@@ -746,8 +749,9 @@ class WalletConnect {
 
     socket.onopen = () => {
       this._setToQueue({
-        topic: "",
-        payload: JSON.stringify([this.clientId])
+        topic: `${this.clientId}`,
+        type: "sub",
+        payload: ""
       });
 
       this._dispatchQueue();
@@ -774,12 +778,11 @@ class WalletConnect {
 
     try {
       socketMessage = JSON.parse(event.data);
-      console.log("_socketReceive socketMessage", socketMessage); // tslint:disable-line
     } catch (error) {
       throw new Error(`Failed to parse invalid JSON`);
     }
 
-    const activeTopics = [this.clientId, this.handshakeTopic]
+    const activeTopics = [this.clientId, this.handshakeTopic];
     if (!activeTopics.includes(socketMessage.topic)) {
       return;
     }
@@ -794,8 +797,6 @@ class WalletConnect {
     const payload: IFullRpcRequest | IRpcResponse | null = await this._decrypt(
       encryptionPayload
     );
-
-    console.log("_socketReceive payload", payload); // tslint:disable-line
 
     if (payload) {
       this._triggerEvents(payload);
@@ -829,8 +830,6 @@ class WalletConnect {
         (eventEmitter: IEventEmitter) => eventEmitter.event === "call_request"
       );
     }
-
-    console.log("_triggerEvents eventEmitters", eventEmitters); // tslint:disable-line
 
     eventEmitters.forEach((eventEmitter: IEventEmitter) =>
       eventEmitter.callback(null, payload)

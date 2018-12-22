@@ -158,7 +158,7 @@ class App extends React.Component<{}> {
 
       window.walletConnector = walletConnector; // tslint:disable-line
 
-      if (!walletConnector.connected && !walletConnector.pending) {
+      if (!walletConnector.connected) {
         await walletConnector.createSession();
       }
 
@@ -232,8 +232,8 @@ class App extends React.Component<{}> {
     this.resetApp();
   };
 
-  public resetApp = () => {
-    this.setState({ ...INITIAL_STATE });
+  public resetApp = async () => {
+    await this.setState({ ...INITIAL_STATE });
     this.initApp();
   };
 
@@ -351,8 +351,6 @@ class App extends React.Component<{}> {
 
   public subscribeToEvents = () => {
     const { walletConnector } = this.state;
-
-    console.log("subscribeToEvents walletConnector", walletConnector); // tslint:disable-line
 
     if (walletConnector) {
       walletConnector.on("session_request", (error, payload) => {
