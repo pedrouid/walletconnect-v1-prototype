@@ -31,6 +31,7 @@ const pubs: ISocketMessage[] = []
 
 function socketSend (socket: WebSocket, socketMessage: ISocketMessage) {
   if (socket.readyState === 1) {
+    console.log('OUT =>', socketMessage)
     socket.send(JSON.stringify(socketMessage))
   }
 }
@@ -80,7 +81,7 @@ server.ready(() => {
       let socketMessage: ISocketMessage
 
       if (message) {
-        console.log('message', message)
+        console.log('IN  =>', message)
 
         try {
           socketMessage = JSON.parse(message)

@@ -5,7 +5,8 @@ import {
   IParseURIResult,
   IFullRpcRequest,
   IRpcResponse,
-  IInternalEvent
+  IInternalEvent,
+  IWalletConnectSession
 } from "./types";
 
 export function concatBuffers(...args: ArrayBuffer[]): ArrayBuffer {
@@ -303,4 +304,10 @@ export function isRpcResponse(object: any): object is IRpcResponse {
 
 export function isInternalEvent(object: any): object is IInternalEvent {
   return "event" in object;
+}
+
+export function isWalletConnectSession(
+  object: any
+): object is IWalletConnectSession {
+  return "node" in object;
 }

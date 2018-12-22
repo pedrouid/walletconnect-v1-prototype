@@ -25,7 +25,8 @@ import {
   parseWalletConnectUri,
   isRpcRequest,
   isRpcResponse,
-  isInternalEvent
+  isInternalEvent,
+  isWalletConnectSession
 } from "./utils";
 
 const localStorageId: string = "wcsmngt";
@@ -87,18 +88,23 @@ class WalletConnect {
 
     if (opts.uri) {
       this.uri = opts.uri;
-      this._setToQueue({
-        topic: "",
-        payload: JSON.stringify([this.handshakeTopic])
-      });
+      this._subscribeToSessionRequest();
     }
 
-    if (opts.session) {
-      this.session = opts.session;
-      this._socketOpen();
+    const session = opts.session || this._getLocal();
+    if (session) {
+      this.session = session;
+    }
+
+    if (this.handshakeId) {
+      this._subscribeToSessionResponse(
+        this.handshakeId,
+        "Session request rejected"
+      );
     }
 
     this._subscribeToInternalEvents();
+    this._socketOpen();
   }
 
   set node(value: string) {
@@ -236,6 +242,14 @@ class WalletConnect {
     return this._connected;
   }
 
+  set pending(value) {
+    return;
+  }
+
+  get pending() {
+    return !!this._handshakeTopic;
+  }
+
   get session() {
     return {
       connected: this.connected,
@@ -253,6 +267,9 @@ class WalletConnect {
   }
 
   set session(value) {
+    if (!value) {
+      return;
+    }
     this._connected = value.connected;
     this.accounts = value.accounts;
     this.chainId = value.chainId;
@@ -266,27 +283,45 @@ class WalletConnect {
     this.handshakeTopic = value.handshakeTopic;
   }
 
-  public async init() {
-    const session: IWalletConnectSession | null = this._getLocal();
-    if (session) {
-      this._reconnectSession(session);
-    } else {
-      if (!this.handshakeTopic) {
-        await this._createSession();
-      }
-    }
-    this._socketOpen();
-  }
-
   public on(
     event: string,
     callback: (error: Error | null, payload: any | null) => void
   ): void {
+    console.log("register on", event); // tslint:disable-line
+
     const eventEmitter = {
       event,
       callback
     };
     this._eventEmitters.push(eventEmitter);
+  }
+
+  public async createSession(): Promise<void> {
+    if (this._connected) {
+      throw new Error("Session currently connected");
+    }
+
+    this._key = this._key || (await generateKey());
+
+    const request: IFullRpcRequest = this._formatRequest({
+      method: "wc_sessionRequest",
+      params: [
+        {
+          peerId: this.clientId,
+          peerMeta: this.clientMeta
+        }
+      ]
+    });
+
+    this._handshakeId = request.id;
+    this.handshakeTopic = this.handshakeTopic || uuid();
+
+    this._sendSessionRequest(
+      request,
+      "Session update rejected",
+      this.handshakeTopic
+    );
+    this._setLocal();
   }
 
   public approveSession(sessionStatus: ISessionStatus) {
@@ -523,12 +558,12 @@ class WalletConnect {
     }
   }
 
-  private async _sendResponse(response: IRpcResponse, _topic?: string) {
+  private async _sendResponse(response: IRpcResponse) {
     const encryptionPayload: IEncryptionPayload = await this._encrypt(response);
 
     const payload: string = JSON.stringify(encryptionPayload);
 
-    const topic: string = _topic ? _topic : this.peerId;
+    const topic: string = this.peerId;
 
     const socketMessage = {
       topic,
@@ -544,9 +579,10 @@ class WalletConnect {
 
   private async _sendSessionRequest(
     request: IFullRpcRequest,
-    errorMsg: string
+    errorMsg: string,
+    _topic?: string
   ) {
-    this._sendRequest(request);
+    this._sendRequest(request, _topic);
     this._subscribeToSessionResponse(request.id, errorMsg);
   }
 
@@ -555,53 +591,12 @@ class WalletConnect {
     return this._subscribeToCallResponse(request.id);
   }
 
-  private _reconnectSession(session: IWalletConnectSession) {
-    this.session = session;
-    this._subscribeToSessionResponse(
-      this.handshakeId,
-      "Session request rejected"
-    );
-  }
-
-  private async _createSession(): Promise<void> {
-    this._key = this._key || (await generateKey());
-
-    const sessionRequest: IFullRpcRequest = this._subscribeToSessionRequest();
-
-    this.handshakeTopic = this.handshakeTopic || uuid();
-
-    this._sendRequest(sessionRequest, this.handshakeTopic);
-
-    this._setLocal();
-  }
-
   private _formatRequest(request: IPartialRpcRequest): IFullRpcRequest {
     const sessionRequest: IFullRpcRequest = {
       id: payloadId(),
       jsonrpc: "2.0",
       ...request
     };
-    return sessionRequest;
-  }
-
-  private _subscribeToSessionRequest(): IFullRpcRequest {
-    const sessionRequest: IFullRpcRequest = this._formatRequest({
-      method: "wc_sessionRequest",
-      params: [
-        {
-          peerId: this.clientId,
-          peerMeta: this.clientMeta
-        }
-      ]
-    });
-
-    this._handshakeId = sessionRequest.id;
-
-    this._subscribeToSessionResponse(
-      this._handshakeId,
-      "Session request rejected"
-    );
-
     return sessionRequest;
   }
 
@@ -667,6 +662,13 @@ class WalletConnect {
       }
       this._removeLocal();
     }
+  }
+
+  private _subscribeToSessionRequest() {
+    this._setToQueue({
+      topic: "",
+      payload: JSON.stringify([this.handshakeTopic])
+    });
   }
 
   private _subscribeToSessionResponse(id: number, errorMsg: string) {
@@ -769,8 +771,10 @@ class WalletConnect {
 
   private async _socketReceive(event: MessageEvent) {
     let socketMessage: ISocketMessage;
+
     try {
       socketMessage = JSON.parse(event.data);
+      console.log("_socketReceive socketMessage", socketMessage); // tslint:disable-line
     } catch (error) {
       throw new Error(`Failed to parse invalid JSON`);
     }
@@ -785,6 +789,8 @@ class WalletConnect {
     const payload: IFullRpcRequest | IRpcResponse | null = await this._decrypt(
       encryptionPayload
     );
+
+    console.log("_socketReceive payload", payload); // tslint:disable-line
 
     if (payload) {
       this._triggerEvents(payload);
@@ -815,9 +821,12 @@ class WalletConnect {
 
     if (!eventEmitters || !eventEmitters.length) {
       eventEmitters = this._eventEmitters.filter(
-        (eventEmitter: IEventEmitter) => eventEmitter.event === "request"
+        (eventEmitter: IEventEmitter) => eventEmitter.event === "call_request"
       );
     }
+
+    console.log("_triggerEvents eventEmitters", eventEmitters); // tslint:disable-line
+
     eventEmitters.forEach((eventEmitter: IEventEmitter) =>
       eventEmitter.callback(null, payload)
     );
@@ -879,10 +888,16 @@ class WalletConnect {
 
   private _getLocal(): IWalletConnectSession | null {
     let session = null;
-    const local = localStorage ? localStorage.getItem(localStorageId) : null;
+    let local = null;
+    if (localStorage) {
+      local = localStorage.getItem(localStorageId);
+    }
     if (local && typeof local === "string") {
       try {
-        session = JSON.parse(local);
+        const json = JSON.parse(local);
+        if (isWalletConnectSession(json)) {
+          session = json;
+        }
       } catch (error) {
         throw new Error(`Failed to parse invalid JSON`);
       }

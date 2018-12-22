@@ -21,8 +21,6 @@
   },
   "homepage": "https://gitlab.com/pedrouid/nodejs-walletconnect-example#readme",
   "devDependencies": {
-    "@types/axios": "^0.14.0",
-    "@types/bignumber.js": "^5.0.0",
     "concurrently": "^4.1.0"
   }
 }

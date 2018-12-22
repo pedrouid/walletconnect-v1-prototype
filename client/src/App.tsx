@@ -156,7 +156,11 @@ class App extends React.Component<{}> {
 
       const walletConnector = new WalletConnect(opts);
 
-      await walletConnector.init();
+      window.walletConnector = walletConnector; // tslint:disable-line
+
+      if (!walletConnector.connected && !walletConnector.pending) {
+        await walletConnector.createSession();
+      }
 
       await this.setState({
         loading: false,
@@ -188,11 +192,19 @@ class App extends React.Component<{}> {
 
       const walletConnector = new WalletConnect({ session });
 
-      const { connected, chainId } = walletConnector;
+      const { connected, chainId, peerMeta } = walletConnector;
 
       const chainData = getChainData(chainId);
 
-      this.setState({ connected, walletConnector, chainId, chainData });
+      await this.setState({
+        connected,
+        walletConnector,
+        chainId,
+        chainData,
+        peerMeta
+      });
+
+      this.subscribeToEvents();
     }
   };
 
@@ -301,7 +313,7 @@ class App extends React.Component<{}> {
           }
         }
       ];
-      const result = await walletConnector.signMessage(msgParams);
+      const result = await walletConnector.signTypedData(msgParams);
       results = [...results, result];
     }
     this.setState({ walletConnector, results });
@@ -340,6 +352,8 @@ class App extends React.Component<{}> {
   public subscribeToEvents = () => {
     const { walletConnector } = this.state;
 
+    console.log("subscribeToEvents walletConnector", walletConnector); // tslint:disable-line
+
     if (walletConnector) {
       walletConnector.on("session_request", (error, payload) => {
         if (error) {
@@ -359,7 +373,7 @@ class App extends React.Component<{}> {
         this.setState({ chainId, accounts, address, chainData });
       });
 
-      walletConnector.on("request", (error, payload) => {
+      walletConnector.on("call_request", (error, payload) => {
         if (error) {
           throw error;
         }
@@ -387,13 +401,7 @@ class App extends React.Component<{}> {
         if (error) {
           throw error;
         }
-        this.setState({
-          connected: false,
-          chainId: defaultChainId,
-          accounts: [],
-          address: "",
-          chainData: getChainData(defaultChainId)
-        });
+        this.resetApp();
       });
 
       if (walletConnector.connected) {
@@ -457,7 +465,8 @@ class App extends React.Component<{}> {
       accounts,
       address,
       chainId,
-      chainData
+      chainData,
+      requests
     } = this.state;
     return (
       <SContainer>
@@ -491,8 +500,22 @@ class App extends React.Component<{}> {
               ) : (
                 <SColumn>
                   <AccountDetails accounts={accounts} chainData={chainData} />
-                  <h6>{"Connected to"}</h6>
-                  <PeerMeta peerMeta={peerMeta} />
+                  {peerMeta.name && (
+                    <>
+                      <h6>{"Connected to"}</h6>
+                      <div>{peerMeta.name}</div>
+                    </>
+                  )}
+                  {!!requests.length && (
+                    <>
+                      <h6>{"Pending Call Requests"}</h6>
+                      {requests.map(request => (
+                        <div key={request.id}>
+                          <div>{request.method}</div>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </SColumn>
               )}
             </Card>
