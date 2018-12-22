@@ -779,6 +779,11 @@ class WalletConnect {
       throw new Error(`Failed to parse invalid JSON`);
     }
 
+    const activeTopics = [this.clientId, this.handshakeTopic]
+    if (!activeTopics.includes(socketMessage.topic)) {
+      return;
+    }
+
     let encryptionPayload: IEncryptionPayload;
     try {
       encryptionPayload = JSON.parse(socketMessage.payload);
