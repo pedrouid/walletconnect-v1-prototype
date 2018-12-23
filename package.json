@@ -4,9 +4,11 @@
   "description": "",
   "main": "server/index.js",
   "scripts": {
+    "clean": "concurrently \"cd client && rm -rf build\" \"cd server && rm -rf build\"",
+    "clean:node_modules": "rm -rf node_modules && concurrently \"cd client && rm -rf node_modules\" \"cd server && rm -rf node_modules\"",
     "bootstrap": "npm install && concurrently \"cd client && npm install\" \"cd server && npm install\"",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "NODE_ENV=production node server/dist",
+    "start": "NODE_ENV=production node server/build",
     "build": "concurrently \"cd client && npm run build\" \"cd server && npm run build\"",
     "dev": "NODE_ENV=development concurrently \"cd client && npm start\" \"cd  server && npm run dev\""
   },

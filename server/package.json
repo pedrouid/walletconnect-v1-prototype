@@ -9,9 +9,9 @@
   },
   "scripts": {
     "dev": "babel-node --extensions '.ts' src/index.ts",
-    "build": "babel ./src --extensions '.ts' --out-dir dist",
+    "build": "babel ./src --extensions '.ts' --out-dir build",
     "test": "mocha --require ./babel-polyfill.js test/**/*.spec.ts",
-    "start": "node dist"
+    "start": "node build"
   },
   "devDependencies": {
     "@babel/cli": "^7.1.2",
