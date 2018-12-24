@@ -10,7 +10,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "NODE_ENV=production node server/build",
     "build": "concurrently \"cd client && npm run build\" \"cd server && npm run build\"",
-    "dev": "NODE_ENV=development concurrently \"cd client && npm start\" \"cd  server && npm run dev\""
+    "dev": "NODE_ENV=development concurrently \"cd client && npm start\" \"cd  server && npm run dev\"",
+    "deploy": "npm run bootstrap && npm run clean && npm run build && NODE_ENV=production pm2 startOrRestart server/build --name=server"
   },
   "repository": {
     "type": "git",
