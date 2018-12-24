@@ -1,7 +1,7 @@
 {
-  "name": "nodejs-walletconnect-example",
+  "name": "walletconnect-v1-prototype",
   "version": "1.0.0",
-  "description": "",
+  "description": "Prototype of WalletConnect v1.0 Protocol",
   "main": "server/index.js",
   "scripts": {
     "clean": "concurrently \"cd client && rm -rf build\" \"cd server && rm -rf build\"",
@@ -15,14 +15,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://gitlab.com/pedrouid/nodejs-walletconnect-example.git"
+    "url": "git+https://github.com/walletconnect-labs/walletconnect-v1-prototype.git"
   },
   "author": "WalletConnect <walletconnect.org>",
   "license": "LGPL-3.0",
   "bugs": {
-    "url": "https://gitlab.com/pedrouid/nodejs-walletconnect-example/issues"
+    "url": "https://github.com/walletconnect-labs/walletconnect-v1-prototype/issues"
   },
-  "homepage": "https://gitlab.com/pedrouid/nodejs-walletconnect-example#readme",
+  "homepage": "https://github.com/walletconnect-labs/walletconnect-v1-prototype#readme",
   "devDependencies": {
     "concurrently": "^4.1.0"
   }

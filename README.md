@@ -1,3 +1,3 @@
-# nodejs-walletconnect-example
+# walletconnect-v1-prototype
 
-Prototype of WalletConnect v1.0 protocol
+Prototype of WalletConnect v1.0 Protocol
