@@ -727,7 +727,11 @@ class WalletConnect {
 
     const socket = new WebSocket(url);
 
+    socket.onmessage = (event: MessageEvent) => this._socketReceive(event);
+
     socket.onopen = () => {
+      this._socket = socket;
+
       this._setToQueue({
         topic: `${this.clientId}`,
         type: "sub",
@@ -736,10 +740,6 @@ class WalletConnect {
 
       this._dispatchQueue();
     };
-
-    socket.onmessage = (event: MessageEvent) => this._socketReceive(event);
-
-    this._socket = socket;
   }
 
   private _socketSend(socketMessage: ISocketMessage) {
