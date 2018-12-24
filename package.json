@@ -2,7 +2,7 @@
   "name": "walletconnect-v1-prototype",
   "version": "1.0.0",
   "description": "Prototype of WalletConnect v1.0 Protocol",
-  "main": "server/index.js",
+  "main": "server/build/index.js",
   "scripts": {
     "clean": "concurrently \"cd client && rm -rf build\" \"cd server && rm -rf build\"",
     "clean:node_modules": "rm -rf node_modules && concurrently \"cd client && rm -rf node_modules\" \"cd server && rm -rf node_modules\"",
