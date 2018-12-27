@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from "axios";
-import { IChainData, IAssetData, IGasPrices } from "./types";
+import { IAssetData, IGasPrices } from "./types";
 import { convertStringToNumber, divide, multiply } from "./bignumber";
+import { getChainData } from "./utilities";
 
 const api: AxiosInstance = axios.create({
   baseURL: "https://blockscout.com/",
@@ -11,10 +12,8 @@ const api: AxiosInstance = axios.create({
   }
 });
 
-export async function apiGetAccountBalance(
-  chainData: IChainData,
-  address: string
-) {
+export async function apiGetAccountBalance(address: string, chainId: number) {
+  const chainData = getChainData(chainId);
   const { chain, network } = chainData;
   const module = "account";
   const action = "balance";
@@ -25,10 +24,8 @@ export async function apiGetAccountBalance(
   return result;
 }
 
-export async function apiGetAccountTokenList(
-  chainData: IChainData,
-  address: string
-) {
+export async function apiGetAccountTokenList(address: string, chainId: number) {
+  const chainData = getChainData(chainId);
   const { chain, network } = chainData;
   const module = "account";
   const action = "tokenlist";
@@ -39,10 +36,11 @@ export async function apiGetAccountTokenList(
 }
 
 export async function apiGetAccountTokenBalance(
-  chainData: IChainData,
   address: string,
+  chainId: number,
   contractAddress: string
 ) {
+  const chainData = getChainData(chainId);
   const { chain, network } = chainData;
   const module = "account";
   const action = "tokenbalance";
@@ -52,10 +50,8 @@ export async function apiGetAccountTokenBalance(
   return result;
 }
 
-export async function apiGetAccountFullBalances(
-  chainData: IChainData,
-  address: string
-) {
+export async function apiGetAccountAssets(address: string, chainId: number) {
+  const chainData = getChainData(chainId);
   const nativeCurrency: IAssetData =
     chainData.chain.toLowerCase() !== "dai"
       ? {
@@ -73,11 +69,11 @@ export async function apiGetAccountFullBalances(
           balance: ""
         };
 
-  const balanceRes = await apiGetAccountBalance(chainData, address);
+  const balanceRes = await apiGetAccountBalance(address, chainId);
 
   nativeCurrency.balance = balanceRes.data.result;
 
-  const tokenListRes = await apiGetAccountTokenList(chainData, address);
+  const tokenListRes = await apiGetAccountTokenList(address, chainId);
 
   const tokenList: IAssetData[] = tokenListRes.data.result;
 
@@ -85,8 +81,8 @@ export async function apiGetAccountFullBalances(
     tokenList.map(
       async (token: IAssetData): Promise<IAssetData> => {
         const tokenBalanceRes = await apiGetAccountTokenBalance(
-          chainData,
           address,
+          chainId,
           token.contractAddress
         );
 
@@ -97,9 +93,9 @@ export async function apiGetAccountFullBalances(
     )
   );
 
-  const fullBalances: IAssetData[] = [nativeCurrency, ...tokens];
+  const assets: IAssetData[] = [nativeCurrency, ...tokens];
 
-  return fullBalances;
+  return assets;
 }
 export const apiGetGasPrices = async (): Promise<IGasPrices> => {
   const { data } = await axios.get(
@@ -124,8 +120,9 @@ export const apiGetGasPrices = async (): Promise<IGasPrices> => {
 
 export const apiGetAccountNonce = (
   address: string,
-  chainData: IChainData
+  chainId: number
 ): Promise<any> => {
+  const chainData = getChainData(chainId);
   if (chainData.chain !== "ETH") {
     throw new Error("Chain not supported");
   }

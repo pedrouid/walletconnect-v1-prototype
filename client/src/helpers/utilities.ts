@@ -34,8 +34,11 @@ export function ellipseText(
   return result;
 }
 
-export function ellipseAddress(address: string = ""): string {
-  return `${address.slice(0, 10)}...${address.slice(-10)}`;
+export function ellipseAddress(
+  address: string = "",
+  width: number = 10
+): string {
+  return `${address.slice(0, width)}...${address.slice(-width)}`;
 }
 
 export function padLeft(n: string, width: number, z?: string): string {

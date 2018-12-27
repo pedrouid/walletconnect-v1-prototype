@@ -14,9 +14,9 @@ import QRCodeScanner, {
   IQRCodeValidateResponse
 } from "./components/QRCodeScanner";
 
-import { ITxData, IChainData } from "./helpers/types";
+import { ITxData } from "./helpers/types";
 import { apiGetGasPrices, apiGetAccountNonce } from "./helpers/api";
-import { isMobile, sanitizeHex, getChainData } from "./helpers/utilities";
+import { isMobile, sanitizeHex } from "./helpers/utilities";
 import {
   convertAmountToRawNumber,
   convertStringToHex
@@ -80,7 +80,6 @@ interface IAppState {
   };
   connected: boolean;
   chainId: number;
-  chainData: IChainData;
   accounts: string[];
   address: string;
   requests: any[];
@@ -115,7 +114,6 @@ const INITIAL_STATE = {
   },
   connected: false,
   chainId: defaultChainId,
-  chainData: getChainData(defaultChainId),
   accounts: [],
   address: "",
   requests: [],
@@ -195,13 +193,10 @@ class App extends React.Component<{}> {
 
       const { connected, chainId, peerMeta } = walletConnector;
 
-      const chainData = getChainData(chainId);
-
       await this.setState({
         connected,
         walletConnector,
         chainId,
-        chainData,
         peerMeta
       });
 
@@ -239,11 +234,11 @@ class App extends React.Component<{}> {
   };
 
   public sendTransaction = async () => {
-    const { walletConnector, address, chainData } = this.state;
+    const { walletConnector, address, chainId } = this.state;
     let { results } = this.state;
 
-    if (walletConnector && chainData) {
-      const nonceRes = await apiGetAccountNonce(address, chainData);
+    if (walletConnector && chainId) {
+      const nonceRes = await apiGetAccountNonce(address, chainId);
       const nonce = nonceRes.data.result;
       const gasPrices = await apiGetGasPrices();
       const gasPriceRaw = gasPrices.slow.price;
@@ -374,8 +369,7 @@ class App extends React.Component<{}> {
 
         const { chainId, accounts } = payload.params[0];
         const address = accounts[0];
-        const chainData = getChainData(chainId);
-        this.setState({ chainId, accounts, address, chainData });
+        this.setState({ chainId, accounts, address });
       });
 
       walletConnector.on("call_request", (error, payload) => {
@@ -398,13 +392,11 @@ class App extends React.Component<{}> {
 
         const { chainId, accounts } = payload.params[0];
         const address = accounts[0];
-        const chainData = getChainData(chainId);
         this.setState({
           connected: true,
           chainId,
           accounts,
-          address,
-          chainData
+          address
         });
       });
 
@@ -421,13 +413,11 @@ class App extends React.Component<{}> {
       if (walletConnector.connected) {
         const { chainId, accounts } = walletConnector;
         const address = accounts[0];
-        const chainData = getChainData(chainId);
         this.setState({
           connected: true,
           chainId,
           accounts,
-          address,
-          chainData
+          address
         });
       }
 
