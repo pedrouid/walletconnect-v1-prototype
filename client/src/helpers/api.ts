@@ -14,7 +14,8 @@ const api: AxiosInstance = axios.create({
 
 export async function apiGetAccountBalance(address: string, chainId: number) {
   const chainData = getChainData(chainId);
-  const { chain, network } = chainData;
+  const chain = chainData.chain.toLowerCase();
+  const network = chainData.network.toLowerCase();
   const module = "account";
   const action = "balance";
 
@@ -26,7 +27,8 @@ export async function apiGetAccountBalance(address: string, chainId: number) {
 
 export async function apiGetAccountTokenList(address: string, chainId: number) {
   const chainData = getChainData(chainId);
-  const { chain, network } = chainData;
+  const chain = chainData.chain.toLowerCase();
+  const network = chainData.network.toLowerCase();
   const module = "account";
   const action = "tokenlist";
   const result = await api.get(
@@ -41,7 +43,8 @@ export async function apiGetAccountTokenBalance(
   contractAddress: string
 ) {
   const chainData = getChainData(chainId);
-  const { chain, network } = chainData;
+  const chain = chainData.chain.toLowerCase();
+  const network = chainData.network.toLowerCase();
   const module = "account";
   const action = "tokenbalance";
   const result = await api.get(
@@ -52,6 +55,7 @@ export async function apiGetAccountTokenBalance(
 
 export async function apiGetAccountAssets(address: string, chainId: number) {
   const chainData = getChainData(chainId);
+
   const nativeCurrency: IAssetData =
     chainData.chain.toLowerCase() !== "dai"
       ? {
