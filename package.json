@@ -15,14 +15,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://gitlab.com/walletconnect/walletconnect-v1-prototype.git"
+    "url": "git+https://github.com/WalletConnect-Labs/walletconnect-v1-prototype.git"
   },
   "author": "WalletConnect <walletconnect.org>",
   "license": "LGPL-3.0",
   "bugs": {
-    "url": "https://gitlab.com/walletconnect/walletconnect-v1-prototype/issues"
+    "url": "https://github.com/WalletConnect-Labs/walletconnect-v1-prototype/issues"
   },
-  "homepage": "https://gitlab.com/walletconnect/walletconnect-v1-prototype#readme",
+  "homepage": "https://github.com/WalletConnect-Labs/walletconnect-v1-prototype#readme",
   "devDependencies": {
     "concurrently": "^4.1.0"
   }
