@@ -81,7 +81,7 @@ export async function apiGetAccountAssets(address: string, chainId: number) {
 
   const tokenList: IAssetData[] = tokenListRes.data.result;
 
-  const tokens: IAssetData[] = await Promise.all(
+  let tokens: IAssetData[] = await Promise.all(
     tokenList.map(
       async (token: IAssetData): Promise<IAssetData> => {
         const tokenBalanceRes = await apiGetAccountTokenBalance(
@@ -90,11 +90,27 @@ export async function apiGetAccountAssets(address: string, chainId: number) {
           token.contractAddress
         );
 
-        token.balance = tokenBalanceRes.data.result;
+        const tokenBalance = tokenBalanceRes.data.result;
+
+        if (
+          tokenBalance &&
+          !Number.isNaN(tokenBalance) &&
+          !!Number(tokenBalance)
+        ) {
+          token.balance = tokenBalance;
+        }
 
         return token;
       }
     )
+  );
+
+  tokens = tokens.filter(
+    token =>
+      !!Number(token.balance) &&
+      !!token.balance &&
+      !!token.decimals &&
+      !!token.name
   );
 
   const assets: IAssetData[] = [nativeCurrency, ...tokens];
