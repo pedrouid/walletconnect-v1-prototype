@@ -3,7 +3,7 @@ export interface IAssetData {
   name: string;
   decimals: string;
   contractAddress: string;
-  balance: string;
+  balance?: string;
 }
 
 export interface IChainData {
@@ -23,6 +23,73 @@ export interface ITxData {
   gasLimit: string;
   value: string;
   data: string;
+}
+
+export interface IBlockScoutTx {
+  value: string;
+  txreceipt_status: string;
+  transactionIndex: string;
+  to: string;
+  timeStamp: string;
+  nonce: string;
+  isError: string;
+  input: string;
+  hash: string;
+  gasUsed: string;
+  gasPrice: string;
+  gas: string;
+  from: string;
+  cumulativeGasUsed: string;
+  contractAddress: string;
+  confirmations: string;
+  blockNumber: string;
+  blockHash: string;
+}
+
+export interface IBlockScoutTokenTx {
+  value: string;
+  transactionIndex: string;
+  tokenSymbol: string;
+  tokenName: string;
+  tokenDecimal: string;
+  to: string;
+  timeStamp: string;
+  nonce: string;
+  input: string;
+  hash: string;
+  gasUsed: string;
+  gasPrice: string;
+  gas: string;
+  from: string;
+  cumulativeGasUsed: string;
+  contractAddress: string;
+  confirmations: string;
+  blockNumber: string;
+  blockHash: string;
+}
+
+export interface IParsedTx {
+  timeStamp: string;
+  hash: string;
+  from: string;
+  to: string;
+  nonce: string;
+  gasPrice: string;
+  gasUsed: string;
+  fee: string;
+  value: string;
+  input: string;
+  error: boolean;
+  asset: IAssetData;
+  operations: ITxOperation[];
+}
+
+export interface ITxOperation {
+  asset: IAssetData;
+  value: string;
+  from: string;
+  to: string;
+  functiomName: string;
 }
 
 export interface IGasPricesResponse {
