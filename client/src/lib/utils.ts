@@ -114,7 +114,11 @@ export function uuid(): string {
   return result;
 }
 
-export function getMeta(): IClientMeta {
+export function getMeta(): IClientMeta | null {
+  if (typeof window !== "undefined" && typeof window.location !== "undefined") {
+    return null;
+  }
+
   function getIcons(): string[] {
     const links: HTMLCollectionOf<
       HTMLLinkElement
@@ -261,10 +265,7 @@ export function parseWalletConnectUri(str: string): IParseURIResult {
     typeof pathEnd !== "undefined" ? str.substr(pathEnd) : "";
 
   function parseQueryParams(queryString: string): IQueryParamsResult {
-    const parameters = {
-      node: "",
-      key: ""
-    };
+    const result: any = {};
 
     const pairs = (queryString[0] === "?"
       ? queryString.substr(1)
@@ -275,11 +276,17 @@ export function parseWalletConnectUri(str: string): IParseURIResult {
       const keyArr: string[] = pairs[i].match(/\w+(?==)/i) || [];
       const valueArr: string[] = pairs[i].match(/=.+/i) || [];
       if (keyArr[0]) {
-        parameters[decodeURIComponent(keyArr[0])] = decodeURIComponent(
+        result[decodeURIComponent(keyArr[0])] = decodeURIComponent(
           valueArr[0].substr(1)
         );
       }
     }
+
+    const parameters = {
+      key: result.key || "",
+      node: result.node || ""
+    };
+
     return parameters;
   }
 

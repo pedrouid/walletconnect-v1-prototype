@@ -107,7 +107,7 @@ export interface IWalletConnectSession {
   node: string;
   key: string;
   clientId: string;
-  clientMeta: IClientMeta;
+  clientMeta: IClientMeta | null;
   peerId: string;
   peerMeta: IClientMeta | null;
   handshakeId: number;
