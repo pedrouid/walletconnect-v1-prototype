@@ -190,7 +190,7 @@ export async function apiGetAccountTransactions(
       value: tokenTx.value,
       from: tokenTx.from,
       to: tokenTx.to,
-      functiomName: tokenTx.input.substring(0, 10)
+      functionName: tokenTx.input.substring(0, 10)
     };
 
     let matchingTx = false;

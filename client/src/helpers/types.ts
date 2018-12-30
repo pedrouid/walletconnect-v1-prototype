@@ -89,7 +89,7 @@ export interface ITxOperation {
   value: string;
   from: string;
   to: string;
-  functiomName: string;
+  functionName: string;
 }
 
 export interface IGasPricesResponse {
