@@ -1,7 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
 
-import WalletConnect from "./lib/walletconnect";
+import WalletConnect from "./lib";
 
 import Button from "./components/Button";
 import Card from "./components/Card";
