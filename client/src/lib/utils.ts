@@ -3,8 +3,8 @@ import {
   IRequiredParamsResult,
   IQueryParamsResult,
   IParseURIResult,
-  IFullRpcRequest,
-  IRpcResponse,
+  IJsonRpcRequest,
+  IJsonRpcResponse,
   IInternalEvent,
   IWalletConnectSession
 } from "./types";
@@ -294,11 +294,11 @@ export function parseWalletConnectUri(str: string): IParseURIResult {
   return result;
 }
 
-export function isRpcRequest(object: any): object is IFullRpcRequest {
+export function isRpcRequest(object: any): object is IJsonRpcRequest {
   return "method" in object;
 }
 
-export function isRpcResponse(object: any): object is IRpcResponse {
+export function isRpcResponse(object: any): object is IJsonRpcResponse {
   return "result" in object;
 }
 

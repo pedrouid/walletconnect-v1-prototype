@@ -1,4 +1,4 @@
-import { IRpcResponse, IFullRpcRequest, IEncryptionPayload } from "./types";
+import { IJsonRpcResponse, IJsonRpcRequest, IEncryptionPayload } from "./types";
 
 import {
   concatBuffers,
@@ -126,7 +126,7 @@ export async function aesCbcDecrypt(
 }
 
 export async function encrypt(
-  data: IFullRpcRequest | IRpcResponse,
+  data: IJsonRpcRequest | IJsonRpcResponse,
   key: ArrayBuffer
 ): Promise<IEncryptionPayload> {
   if (!key) {
@@ -156,7 +156,7 @@ export async function encrypt(
 export async function decrypt(
   payload: IEncryptionPayload,
   key: ArrayBuffer
-): Promise<IFullRpcRequest | IRpcResponse | null> {
+): Promise<IJsonRpcRequest | IJsonRpcResponse | null> {
   if (!key) {
     throw new Error("Missing key: required for decryption");
   }
@@ -170,7 +170,7 @@ export async function decrypt(
   const iv: ArrayBuffer = convertHexToBuffer(payload.iv);
   const buffer: ArrayBuffer = await aesCbcDecrypt(cipherText, key, iv);
   const utf8: string = convertBufferToUtf8(buffer);
-  let data: IFullRpcRequest;
+  let data: IJsonRpcRequest;
   try {
     data = JSON.parse(utf8);
   } catch (error) {

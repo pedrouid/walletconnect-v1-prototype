@@ -34,7 +34,13 @@ export interface ITxData {
   data: string;
 }
 
-export interface IRpcResponse {
+export interface IPartialRpcResponse {
+  id: number;
+  jsonrpc?: string;
+  result: any;
+}
+
+export interface IJsonRpcResponse {
   id: number;
   jsonrpc: string;
   result: any;
@@ -47,7 +53,7 @@ export interface IPartialRpcRequest {
   params: any[];
 }
 
-export interface IFullRpcRequest {
+export interface IJsonRpcRequest {
   id: number;
   jsonrpc: string;
   method: string;
@@ -112,4 +118,5 @@ export interface IWalletConnectOptions {
   node?: string;
   uri?: string;
   session?: IWalletConnectSession;
+  clientMeta?: IClientMeta;
 }

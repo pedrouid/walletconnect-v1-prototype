@@ -5,10 +5,11 @@ import {
   ISessionStatus,
   ISessionError,
   IInternalEvent,
-  IRpcResponse,
-  ITxData,
+  IJsonRpcResponse,
+  IPartialRpcResponse,
   IPartialRpcRequest,
-  IFullRpcRequest,
+  IJsonRpcRequest,
+  ITxData,
   IClientMeta,
   IEventEmitter,
   IParseURIResult,
@@ -63,6 +64,9 @@ class WalletConnect {
     this.protocol = "wc";
     this.version = 1;
 
+    this._node = "";
+    this._key = new ArrayBuffer(0);
+
     this._clientId = "";
     this._clientMeta = null;
     this._peerId = "";
@@ -80,6 +84,10 @@ class WalletConnect {
       throw new Error(
         "Missing one of two required parameters: node / uri / session"
       );
+    }
+
+    if (opts.clientMeta) {
+      this.clientMeta = opts.clientMeta;
     }
 
     if (opts.node) {
@@ -305,7 +313,7 @@ class WalletConnect {
 
     this._key = await generateKey();
 
-    const request: IFullRpcRequest = this._formatRequest({
+    const request: IJsonRpcRequest = this._formatRequest({
       method: "wc_sessionRequest",
       params: [
         {
@@ -517,10 +525,20 @@ class WalletConnect {
     }
   }
 
+  public approveRequest(response: IPartialRpcResponse) {
+    const formattedResponse: IJsonRpcResponse = this._formatResponse(response);
+    this._sendResponse(formattedResponse);
+  }
+
+  public rejectRequest(response: IPartialRpcResponse) {
+    const formattedResponse: IJsonRpcResponse = this._formatResponse(response);
+    this._sendResponse(formattedResponse);
+  }
+
   // -- Private Methods ----------------------------------------------------- //
 
   private async _sendRequest(request: IPartialRpcRequest, _topic?: string) {
-    const callRequest: IFullRpcRequest = this._formatRequest(request);
+    const callRequest: IJsonRpcRequest = this._formatRequest(request);
 
     const encryptionPayload: IEncryptionPayload = await this._encrypt(
       callRequest
@@ -542,7 +560,7 @@ class WalletConnect {
     }
   }
 
-  private async _sendResponse(response: IRpcResponse) {
+  private async _sendResponse(response: IJsonRpcResponse) {
     const encryptionPayload: IEncryptionPayload = await this._encrypt(response);
 
     const topic: string = this.peerId;
@@ -562,7 +580,7 @@ class WalletConnect {
   }
 
   private async _sendSessionRequest(
-    request: IFullRpcRequest,
+    request: IJsonRpcRequest,
     errorMsg: string,
     _topic?: string
   ) {
@@ -570,18 +588,26 @@ class WalletConnect {
     this._subscribeToSessionResponse(request.id, errorMsg);
   }
 
-  private _sendCallRequest(request: IFullRpcRequest): Promise<any> {
+  private _sendCallRequest(request: IJsonRpcRequest): Promise<any> {
     this._sendRequest(request);
     return this._subscribeToCallResponse(request.id);
   }
 
-  private _formatRequest(request: IPartialRpcRequest): IFullRpcRequest {
-    const sessionRequest: IFullRpcRequest = {
+  private _formatRequest(request: IPartialRpcRequest): IJsonRpcRequest {
+    const formattedRequest: IJsonRpcRequest = {
       id: payloadId(),
       jsonrpc: "2.0",
       ...request
     };
-    return sessionRequest;
+    return formattedRequest;
+  }
+
+  private _formatResponse(request: IPartialRpcResponse): IJsonRpcResponse {
+    const formattedResponse: IJsonRpcResponse = {
+      jsonrpc: "2.0",
+      ...request
+    };
+    return formattedResponse;
   }
 
   private _handleSessionResponse(
@@ -655,7 +681,7 @@ class WalletConnect {
   }
 
   private _subscribeToSessionResponse(id: number, errorMsg: string) {
-    this.on(`response:${id}`, (error: Error, payload: IRpcResponse) => {
+    this.on(`response:${id}`, (error, payload) => {
       if (error) {
         console.error(errorMsg); // tslint:disable-line
       }
@@ -666,7 +692,7 @@ class WalletConnect {
 
   private _subscribeToCallResponse(id: number): Promise<any> {
     return new Promise((resolve, reject) => {
-      this.on(`response:${id}`, (error: Error, payload: IRpcResponse) => {
+      this.on(`response:${id}`, (error, payload) => {
         if (error) {
           reject(error);
         }
@@ -774,9 +800,10 @@ class WalletConnect {
       throw new Error(`Failed to parse invalid JSON`);
     }
 
-    const payload: IFullRpcRequest | IRpcResponse | null = await this._decrypt(
-      encryptionPayload
-    );
+    const payload:
+      | IJsonRpcRequest
+      | IJsonRpcResponse
+      | null = await this._decrypt(encryptionPayload);
 
     if (payload) {
       this._triggerEvents(payload);
@@ -784,7 +811,7 @@ class WalletConnect {
   }
 
   private _triggerEvents(
-    payload: IFullRpcRequest | IRpcResponse | IInternalEvent
+    payload: IJsonRpcRequest | IJsonRpcResponse | IInternalEvent
   ): void {
     let eventEmitters: IEventEmitter[] = [];
     let event: string;
@@ -817,7 +844,7 @@ class WalletConnect {
   }
 
   private async _encrypt(
-    data: IFullRpcRequest | IRpcResponse
+    data: IJsonRpcRequest | IJsonRpcResponse
   ): Promise<IEncryptionPayload> {
     const key: ArrayBuffer = this._key;
     const result: IEncryptionPayload = await encrypt(data, key);
@@ -826,9 +853,9 @@ class WalletConnect {
 
   private async _decrypt(
     payload: IEncryptionPayload
-  ): Promise<IFullRpcRequest | IRpcResponse | null> {
+  ): Promise<IJsonRpcRequest | IJsonRpcResponse | null> {
     const key: ArrayBuffer = this._key;
-    const result: IFullRpcRequest | IRpcResponse | null = await decrypt(
+    const result: IJsonRpcRequest | IJsonRpcResponse | null = await decrypt(
       payload,
       key
     );
