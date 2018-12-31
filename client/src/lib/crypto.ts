@@ -114,7 +114,7 @@ export async function aesCbcDecrypt(
   iv: ArrayBuffer
 ): Promise<ArrayBuffer> {
   const cryptoKey: CryptoKey = await importKey(key, AES_ALGORITHM);
-  const result: ArrayBuffer = await window.window.crypto.subtle.decrypt(
+  const result: ArrayBuffer = await window.crypto.subtle.decrypt(
     {
       iv,
       name: AES_ALGORITHM
