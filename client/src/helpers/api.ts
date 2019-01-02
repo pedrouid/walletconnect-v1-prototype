@@ -9,6 +9,7 @@ import {
 } from "./types";
 import { convertStringToNumber, divide, multiply } from "./bignumber";
 import { getChainData } from "./utilities";
+import functionNames from "./functionNames";
 
 const api: AxiosInstance = axios.create({
   baseURL: "https://blockscout.com/",
@@ -185,12 +186,14 @@ export async function apiGetAccountTransactions(
       contractAddress: tokenTx.contractAddress
     };
 
+    const functionHash = tokenTx.input.substring(0, 10);
+
     const operation: ITxOperation = {
       asset,
       value: tokenTx.value,
       from: tokenTx.from,
       to: tokenTx.to,
-      functionName: tokenTx.input.substring(0, 10)
+      functionName: functionNames[functionHash] || functionHash
     };
 
     let matchingTx = false;
