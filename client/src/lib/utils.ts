@@ -1,22 +1,56 @@
 import {
   IClientMeta,
-  IRequiredParamsResult,
-  IQueryParamsResult,
   IParseURIResult,
-  IJsonRpcRequest,
-  IJsonRpcResponse,
-  IInternalEvent,
-  IWalletConnectSession
+  IRequiredParamsResult,
+  IQueryParamsResult
 } from "./types";
 
-export function concatBuffers(...args: ArrayBuffer[]): ArrayBuffer {
-  const hex: string = args.map(b => convertBufferToHex(b)).join("");
-  const result: ArrayBuffer = convertHexToBuffer(hex);
+export function convertArrayBufferToBuffer(arrayBuffer: ArrayBuffer): Buffer {
+  const hex = convertArrayBufferToHex(arrayBuffer);
+  const result = convertHexToBuffer(hex);
   return result;
 }
 
-export function convertBufferToUtf8(buffer: ArrayBuffer): string {
-  const array: Uint8Array = new Uint8Array(buffer);
+export function convertBufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
+  const hex = convertBufferToHex(buffer);
+  const result = convertHexToArrayBuffer(hex);
+  return result;
+}
+
+export function convertUtf8ToBuffer(utf8: string): Buffer {
+  const result = new Buffer(utf8, "utf8");
+  return result;
+}
+
+export function convertBufferToUtf8(buffer: Buffer): string {
+  const result = buffer.toString("utf8");
+  return result;
+}
+
+export function convertBufferToHex(buffer: Buffer): string {
+  const result = buffer.toString("hex");
+  return result;
+}
+
+export function convertHexToBuffer(hex: string): Buffer {
+  const result = new Buffer(hex, "hex");
+  return result;
+}
+
+export function concatBuffers(...args: Buffer[]): Buffer {
+  const hex: string = args.map(b => convertBufferToHex(b)).join("");
+  const result: Buffer = convertHexToBuffer(hex);
+  return result;
+}
+
+export function concatArrayBuffers(...args: ArrayBuffer[]): ArrayBuffer {
+  const hex: string = args.map(b => convertArrayBufferToHex(b)).join("");
+  const result: ArrayBuffer = convertHexToArrayBuffer(hex);
+  return result;
+}
+
+export function convertArrayBufferToUtf8(arrayBuffer: ArrayBuffer): string {
+  const array: Uint8Array = new Uint8Array(arrayBuffer);
   const chars: string[] = [];
   let i: number = 0;
 
@@ -46,7 +80,7 @@ export function convertBufferToUtf8(buffer: ArrayBuffer): string {
   return utf8;
 }
 
-export function convertUtf8ToBuffer(utf8: string): ArrayBuffer {
+export function convertUtf8ToArrayBuffer(utf8: string): ArrayBuffer {
   const bytes: number[] = [];
 
   let i = 0;
@@ -62,12 +96,12 @@ export function convertUtf8ToBuffer(utf8: string): ArrayBuffer {
   }
 
   const array: Uint8Array = new Uint8Array(bytes);
-  const buffer: ArrayBuffer = array.buffer;
-  return buffer;
+  const arrayBuffer: ArrayBuffer = array.buffer;
+  return arrayBuffer;
 }
 
-export function convertBufferToHex(buffer: ArrayBuffer): string {
-  const array: Uint8Array = new Uint8Array(buffer);
+export function convertArrayBufferToHex(arrayBuffer: ArrayBuffer): string {
+  const array: Uint8Array = new Uint8Array(arrayBuffer);
   const HEX_CHARS: string = "0123456789abcdef";
   const bytes: string[] = [];
   for (let i = 0; i < array.length; i++) {
@@ -78,7 +112,7 @@ export function convertBufferToHex(buffer: ArrayBuffer): string {
   return hex;
 }
 
-export function convertHexToBuffer(hex: string): ArrayBuffer {
+export function convertHexToArrayBuffer(hex: string): ArrayBuffer {
   const bytes: number[] = [];
 
   for (let i = 0; i < hex.length; i += 2) {
@@ -86,8 +120,8 @@ export function convertHexToBuffer(hex: string): ArrayBuffer {
   }
 
   const array: Uint8Array = new Uint8Array(bytes);
-  const buffer: ArrayBuffer = array.buffer;
-  return buffer;
+  const arrayBuffer: ArrayBuffer = array.buffer;
+  return arrayBuffer;
 }
 
 export function payloadId(): number {
@@ -299,22 +333,4 @@ export function parseWalletConnectUri(str: string): IParseURIResult {
   };
 
   return result;
-}
-
-export function isRpcRequest(object: any): object is IJsonRpcRequest {
-  return "method" in object;
-}
-
-export function isRpcResponse(object: any): object is IJsonRpcResponse {
-  return "result" in object;
-}
-
-export function isInternalEvent(object: any): object is IInternalEvent {
-  return "event" in object;
-}
-
-export function isWalletConnectSession(
-  object: any
-): object is IWalletConnectSession {
-  return "node" in object;
 }

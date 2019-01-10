@@ -1,3 +1,15 @@
+export interface ICryptoLib {
+  generateKey: (length?: number) => Promise<ArrayBuffer>;
+  encrypt: (
+    data: IJsonRpcRequest | IJsonRpcResponse,
+    key: ArrayBuffer
+  ) => Promise<IEncryptionPayload>;
+  decrypt: (
+    payload: IEncryptionPayload,
+    key: ArrayBuffer
+  ) => Promise<IJsonRpcRequest | IJsonRpcResponse | null>;
+}
+
 export interface IEncryptionPayload {
   data: string;
   hmac: string;
