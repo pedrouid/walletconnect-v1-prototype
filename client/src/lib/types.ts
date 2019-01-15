@@ -33,7 +33,7 @@ export interface ISessionError {
 
 export interface IInternalEvent {
   event: string;
-  params: any;
+  payload: IJsonRpcRequest | IJsonRpcResponse
 }
 
 export interface ITxData {

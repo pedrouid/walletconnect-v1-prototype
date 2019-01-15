@@ -382,25 +382,18 @@ class Connector {
       message: null
     };
 
-    const response = {
+    const payload = {
       id: this.handshakeId,
       jsonrpc: "2.0",
       result: sessionParams
     };
 
-    this._sendResponse(response);
+    this._sendResponse(payload);
 
     this._connected = true;
     this._triggerEvents({
       event: "connect",
-      params: [
-        {
-          peerId: this.peerId,
-          peerMeta: this.peerMeta,
-          chainId: this.chainId,
-          accounts: this.accounts
-        }
-      ]
+      payload
     });
     this._setStorageSession();
   }
@@ -421,18 +414,18 @@ class Connector {
       message
     };
 
-    const response = {
+    const payload = {
       id: this.handshakeId,
       jsonrpc: "2.0",
       result: sessionParams
     };
 
-    this._sendResponse(response);
+    this._sendResponse(payload);
 
     this._connected = false;
     this._triggerEvents({
       event: "disconnect",
-      params: [{ message }]
+      payload
     });
     this._removeStorageSession();
   }
@@ -461,12 +454,7 @@ class Connector {
 
     this._triggerEvents({
       event: "session_update",
-      params: [
-        {
-          chainId: this.chainId,
-          accounts: this.accounts
-        }
-      ]
+      payload: request
     });
     this._setStorageSession();
   }
@@ -496,7 +484,7 @@ class Connector {
 
     this._triggerEvents({
       event: "disconnect",
-      params: [{ message }]
+      payload: request
     });
 
     this._removeStorageSession();
@@ -644,10 +632,16 @@ class Connector {
   }
 
   private _handleSessionResponse(
-    sessionParams: ISessionParams,
+    payload: IJsonRpcRequest | IJsonRpcResponse,
     errorMsg: string
   ) {
-    if (sessionParams.approved) {
+    let sessionParams: ISessionParams | null = null;
+    if (isRpcRequest(payload)) {
+      sessionParams = payload.params[0];
+    } else if (isRpcResponse(payload)) {
+      sessionParams = payload.result;
+    }
+    if (sessionParams && sessionParams.approved) {
       if (!this._connected) {
         this._connected = true;
         if (sessionParams.peerId) {
@@ -665,14 +659,7 @@ class Connector {
 
         this._triggerEvents({
           event: "connect",
-          params: [
-            {
-              peerId: this.peerId,
-              peerMeta: this.peerMeta,
-              chainId: this.chainId,
-              accounts: this.accounts
-            }
-          ]
+          payload
         });
       } else {
         if (sessionParams.chainId) {
@@ -684,23 +671,20 @@ class Connector {
 
         this._triggerEvents({
           event: "session_update",
-          params: [
-            {
-              chainId: this.chainId,
-              accounts: this.accounts
-            }
-          ]
+          payload
         });
       }
       this._setStorageSession();
     } else {
       this._connected = false;
-      const message = sessionParams.message || errorMsg;
       this._triggerEvents({
         event: "disconnect",
-        params: [{ message }]
+        payload
       });
-      console.error(message); // tslint:disable-line
+      if (sessionParams) {
+        const message = sessionParams.message || errorMsg;
+        console.error(message); // tslint:disable-line
+      }
       this._removeStorageSession();
     }
   }
@@ -719,7 +703,7 @@ class Connector {
         console.error(errorMsg); // tslint:disable-line
       }
 
-      this._handleSessionResponse(payload.result, errorMsg);
+      this._handleSessionResponse(payload, errorMsg);
     });
   }
 
@@ -749,7 +733,7 @@ class Connector {
 
       this._triggerEvents({
         event: "session_request",
-        params: [{ peerId: this.peerId, peerMeta: this.peerMeta }]
+        payload
       });
     });
 
@@ -757,7 +741,7 @@ class Connector {
       if (error) {
         console.error(error); // tslint:disable-line
       }
-      this._handleSessionResponse(payload.params[0], "Session disconnected");
+      this._handleSessionResponse(payload, "Session disconnected");
     });
   }
 
@@ -789,9 +773,13 @@ class Connector {
       );
     }
 
-    eventEmitters.forEach((eventEmitter: IEventEmitter) =>
-      eventEmitter.callback(null, payload)
-    );
+    eventEmitters.forEach((eventEmitter: IEventEmitter) => {
+      let _payload = payload;
+      if (isInternalEvent(payload)) {
+        _payload = payload.payload;
+      }
+      eventEmitter.callback(null, _payload);
+    });
   }
 
   // -- websocket ------------------------------------------------------- //
