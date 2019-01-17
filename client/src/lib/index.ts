@@ -1,4 +1,4 @@
-import Connector from "./connector";
+import Connector from "./core";
 import { IWalletConnectOptions } from "./types";
 import * as cryptoLib from "./webCrypto";
 

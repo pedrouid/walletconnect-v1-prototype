@@ -9,7 +9,7 @@ import {
 } from "./utils";
 
 const AES_ALGORITHM: string = "AES-CBC";
-const AES_LENGTH: number = 128;
+const AES_LENGTH: number = 256;
 const HMAC_ALGORITHM: string = "SHA-256";
 
 export async function exportKey(cryptoKey: CryptoKey): Promise<ArrayBuffer> {

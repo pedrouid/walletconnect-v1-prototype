@@ -91,7 +91,7 @@ export interface IRequiredParamsResult {
 }
 
 export interface IQueryParamsResult {
-  node: string;
+  bridge: string;
   key: string;
 }
 
@@ -99,7 +99,7 @@ export interface IParseURIResult {
   protocol: string;
   handshakeTopic: string;
   version: number;
-  node: string;
+  bridge: string;
   key: string;
 }
 
@@ -116,7 +116,7 @@ export interface IWalletConnectSession {
   connected: boolean;
   accounts: string[];
   chainId: number;
-  node: string;
+  bridge: string;
   key: string;
   clientId: string;
   clientMeta: IClientMeta | null;
@@ -127,8 +127,7 @@ export interface IWalletConnectSession {
 }
 
 export interface IWalletConnectOptions {
-  node?: string;
+  bridge?: string;
   uri?: string;
   session?: IWalletConnectSession;
-  clientMeta?: IClientMeta;
 }
