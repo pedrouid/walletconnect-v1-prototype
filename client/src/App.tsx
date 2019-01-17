@@ -149,9 +149,9 @@ class App extends React.Component<{}> {
     this.setState({ loading: true });
 
     try {
-      const node = this.generateTestNodeUrl();
+      const bridge = this.generateBridgeUrl();
 
-      const opts = uri ? { uri } : { node };
+      const opts = uri ? { uri } : { bridge };
 
       const walletConnector = new WalletConnect(opts);
 
@@ -334,7 +334,7 @@ class App extends React.Component<{}> {
     this.setState({ accounts, address });
   };
 
-  public generateTestNodeUrl(): string {
+  public generateBridgeUrl(): string {
     const host: string = window.location.host;
     const protocol: string = window.location.href.startsWith("https")
       ? "wss"
