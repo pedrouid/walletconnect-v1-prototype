@@ -1,20 +1,19 @@
 export const colors = {
   white: "255, 255, 255",
   black: "0, 0, 0",
-  lightGrey: "212, 212, 212",
   dark: "12, 12, 13",
+  grey: "169, 169, 188",
+  darkGrey: "113, 119, 138",
+  lightGrey: "212, 212, 212",
   blue: "101, 127, 230",
-  lightBlue: "97, 218, 251",
+  lightBlue: "64, 153, 255",
   yellow: "250, 188, 45",
   orange: "246, 133, 27",
   green: "84, 209, 146",
   pink: "255, 51, 102",
-  background: "40, 44, 52",
-  grey: "169, 169, 188",
-  darkGrey: "113, 119, 138",
   red: "214, 75, 71",
   purple: "110, 107, 233",
-  walletconnect: "64, 153, 255"
+  background: "40, 44, 52"
 };
 
 export const fonts = {
@@ -84,7 +83,7 @@ export const responsive = {
 };
 
 export const globalStyle = `
-  @import url('https://fonts.googleapis.com/css?family=Open+Sans:400,700,800');
+  @import url('https://fonts.googleapis.com/css?family=Open+Sans:400,500,600,700,800');
 
   html, body, #root {
     height: 100%;
