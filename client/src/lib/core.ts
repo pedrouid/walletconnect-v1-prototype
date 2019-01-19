@@ -147,7 +147,7 @@ class Connector {
 
   set bridge(value: string) {
     if (!value) {
-      throw new Error("Missing bridge parameter value");
+      return;
     }
     this._bridge = value;
   }
@@ -843,7 +843,7 @@ class Connector {
     try {
       socketMessage = JSON.parse(event.data);
     } catch (error) {
-      throw new Error(`Failed to parse invalid JSON`);
+      throw error;
     }
 
     const activeTopics = [this.clientId, this.handshakeTopic];
@@ -855,7 +855,7 @@ class Connector {
     try {
       encryptionPayload = JSON.parse(socketMessage.payload);
     } catch (error) {
-      throw new Error(`Failed to parse invalid JSON`);
+      throw error;
     }
 
     const payload:
@@ -972,7 +972,7 @@ class Connector {
           session = json;
         }
       } catch (error) {
-        throw new Error(`Failed to parse invalid JSON`);
+        throw error;
       }
     }
     return session;
