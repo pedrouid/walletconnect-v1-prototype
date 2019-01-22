@@ -178,7 +178,7 @@ class App extends React.Component<{}> {
   public initWallet = async () => {
     this.generateTestAccounts();
 
-    const local = localStorage ? localStorage.getItem("wcsmngt") : null;
+    const local = localStorage ? localStorage.getItem("walletconnect") : null;
 
     if (local) {
       let session;
