@@ -126,14 +126,13 @@ class Connector {
 
     if (opts.uri) {
       this.uri = opts.uri;
-      this._recycleKey();
       this._subscribeToSessionRequest();
     }
 
     const session = opts.session || this._getStorageSession();
     if (session) {
       this.session = session;
-      this._recycleKey();
+      this._exchangeKey();
     }
 
     if (this.handshakeId) {
@@ -401,8 +400,6 @@ class Connector {
       approved: true,
       chainId: this.chainId,
       accounts: this.accounts,
-      peerId: this.clientId,
-      peerMeta: this.clientMeta,
       message: null
     };
 
@@ -440,8 +437,6 @@ class Connector {
       approved: false,
       chainId: null,
       accounts: null,
-      peerId: null,
-      peerMeta: null,
       message
     };
 
@@ -674,12 +669,6 @@ class Connector {
     if (sessionParams.approved) {
       if (!this._connected) {
         this._connected = true;
-        if (sessionParams.peerId) {
-          this.peerId = sessionParams.peerId;
-        }
-        if (sessionParams.peerMeta) {
-          this.peerMeta = sessionParams.peerMeta;
-        }
         if (sessionParams.chainId) {
           this.chainId = sessionParams.chainId;
         }
@@ -771,10 +760,7 @@ class Connector {
       this.peerId = payload.params[0].peerId;
       this.peerMeta = payload.params[0].peerMeta;
 
-      this._triggerEvents({
-        event: "session_request",
-        params: [{ peerId: this.peerId, peerMeta: this.peerMeta }]
-      });
+      this._exchangeKey();
     });
 
     this.on("wc_sessionUpdate", (error, payload) => {
@@ -784,11 +770,11 @@ class Connector {
       this._handleSessionResponse(payload.params[0], "Session disconnected");
     });
 
-    this.on("wc_recycleKey", (error, payload) => {
+    this.on("wc_exchangeKey", (error, payload) => {
       if (error) {
         console.error(error); // tslint:disable-line
       }
-      this._handleRecycleKeyRequest(payload);
+      this._handleExchangeKeyRequest(payload);
     });
   }
 
@@ -827,11 +813,11 @@ class Connector {
 
   // -- keyManager ------------------------------------------------------- //
 
-  private async _recycleKey() {
+  private async _exchangeKey() {
     this._nextKey = await this._generateKey();
 
     const request: IJsonRpcRequest = this._formatRequest({
-      method: "wc_recycleKey",
+      method: "wc_exchangeKey",
       params: [
         {
           peerId: this.clientId,
@@ -849,7 +835,7 @@ class Connector {
     }
   }
 
-  private async _handleRecycleKeyRequest(payload: IJsonRpcRequest) {
+  private async _handleExchangeKeyRequest(payload: IJsonRpcRequest) {
     const { peerId, peerMeta, nextKey } = payload.params[0];
     this.peerId = peerId;
     this.peerMeta = peerMeta;

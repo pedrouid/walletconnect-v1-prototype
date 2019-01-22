@@ -107,8 +107,6 @@ export interface ISessionParams {
   approved: boolean;
   chainId: number | null;
   accounts: string[] | null;
-  peerId?: string | null;
-  peerMeta?: IClientMeta | null;
   message?: string | null;
 }
 

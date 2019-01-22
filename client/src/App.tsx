@@ -349,8 +349,8 @@ class App extends React.Component<{}> {
     const { walletConnector } = this.state;
 
     if (walletConnector) {
-      walletConnector.on("session_request", (error, payload) => {
-        console.log('walletConnector.on("session_request")'); // tslint:disable-line
+      walletConnector.on("wc_sessionRequest", (error, payload) => {
+        console.log('walletConnector.on("wc_sessionRequest")'); // tslint:disable-line
 
         if (error) {
           throw error;
