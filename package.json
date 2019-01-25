@@ -1,29 +1,57 @@
 {
-  "name": "walletconnect-v1-prototype",
-  "version": "1.0.0",
-  "description": "Prototype of WalletConnect v1.0 Protocol",
-  "main": "server/build/index.js",
+  "name": "walletconnect-mock-wallet",
+  "version": "1.0.0-beta",
+  "private": true,
+  "keywords": [
+    "walletconnect",
+    "ethereum",
+    "web3",
+    "crypto"
+  ],
+  "author": "WalletConnect <walletconnect.org>",
+  "homepage": "https://walletconnect.org",
+  "license": "LGPL-3.0",
   "scripts": {
-    "clean": "concurrently \"cd client && rm -rf build\" \"cd server && rm -rf build\"",
-    "clean:node_modules": "rm -rf node_modules && concurrently \"cd client && rm -rf node_modules\" \"cd server && rm -rf node_modules\"",
-    "bootstrap": "npm install && concurrently \"cd client && npm install\" \"cd server && npm install\"",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "NODE_ENV=production node server/build",
-    "build": "concurrently \"cd client && npm run build\" \"cd server && npm run build\"",
-    "dev": "NODE_ENV=development concurrently \"cd client && npm start\" \"cd  server && npm run dev\"",
-    "deploy": "npm run bootstrap && npm run clean && npm run build && NODE_ENV=production pm2 startOrRestart server/build --name=server"
+    "start": "react-scripts-ts start",
+    "build": "react-scripts-ts build",
+    "test": "react-scripts-ts test --env=jsdom",
+    "eject": "react-scripts-ts eject"
+  },
+  "dependencies": {
+    "axios": "^0.18.0",
+    "bignumber.js": "^8.0.1",
+    "qr-image": "^3.2.0",
+    "react": "^16.6.3",
+    "react-blockies": "^1.4.0",
+    "react-dom": "^16.6.3",
+    "react-qr-reader": "^2.1.1",
+    "react-scripts-ts": "^4.0.8",
+    "styled-components": "^4.1.3"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/WalletConnect-Labs/walletconnect-v1-prototype.git"
+    "url": "git+https://github.com/walletconnect/walletconnect-monorepo.git"
   },
-  "author": "WalletConnect <walletconnect.org>",
-  "license": "LGPL-3.0",
   "bugs": {
-    "url": "https://github.com/WalletConnect-Labs/walletconnect-v1-prototype/issues"
+    "url": "https://github.com/walletconnect/walletconnect-monorepo/issues"
   },
-  "homepage": "https://github.com/WalletConnect-Labs/walletconnect-v1-prototype#readme",
   "devDependencies": {
-    "concurrently": "^4.1.0"
-  }
+    "@types/jest": "^23.3.10",
+    "@types/node": "^10.12.15",
+    "@types/qr-image": "^3.2.1",
+    "@types/react": "^16.7.17",
+    "@types/react-dom": "^16.0.11",
+    "@types/react-qr-reader": "^2.1.2",
+    "@types/styled-components": "^4.1.4",
+    "typescript": "^3.2.2"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not ie <= 11",
+    "not op_mini all"
+  ]
 }
